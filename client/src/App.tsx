@@ -4,36 +4,71 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { LanguageProvider } from "./contexts/LanguageContext";
 import Home from "./pages/Home";
+import Navbar from "./components/Navbar";
+import ExchangeRateTicker from "./components/ExchangeRateTicker";
+import ChatWidget from "./components/ChatWidget";
+import { lazy, Suspense } from "react";
 
-function Router() {
-  // make sure to consider if you need authentication for certain routes
+// Lazy-load heavy pages
+const Products = lazy(() => import("./pages/Products"));
+const ProductDetail = lazy(() => import("./pages/ProductDetail"));
+const Cart = lazy(() => import("./pages/Cart"));
+const Checkout = lazy(() => import("./pages/Checkout"));
+const Orders = lazy(() => import("./pages/Orders"));
+const OrderDetail = lazy(() => import("./pages/OrderDetail"));
+const Account = lazy(() => import("./pages/Account"));
+const Payment = lazy(() => import("./pages/Payment"));
+const Admin = lazy(() => import("./pages/Admin"));
+
+function PageLoader() {
   return (
-    <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
-      <Route component={NotFound} />
-    </Switch>
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
   );
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
+function Router() {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/products" component={Products} />
+        <Route path="/products/:slug" component={ProductDetail} />
+        <Route path="/cart" component={Cart} />
+        <Route path="/checkout" component={Checkout} />
+        <Route path="/orders" component={Orders} />
+        <Route path="/orders/:id" component={OrderDetail} />
+        <Route path="/account" component={Account} />
+        <Route path="/payment/:orderId" component={Payment} />
+        <Route path="/admin" component={Admin} />
+        <Route path="/admin/:section" component={Admin} />
+        <Route path="/404" component={NotFound} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
+  );
+}
 
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+      <ThemeProvider defaultTheme="light">
+        <LanguageProvider>
+          <TooltipProvider>
+            <Toaster />
+            <div className="min-h-screen flex flex-col">
+              <ExchangeRateTicker />
+              <Navbar />
+              <main className="flex-1">
+                <Router />
+              </main>
+              <ChatWidget />
+            </div>
+          </TooltipProvider>
+        </LanguageProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
