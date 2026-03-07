@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: daiizen
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: pnpm install && pnpm build
+    startCommand: node dist/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false   # Set manually in Render dashboard
+      - key: JWT_SECRET
+        generateValue: true
+      - key: VITE_APP_TITLE
+        value: Daiizen
+      - key: VITE_USDD_PAYMENT_ADDRESS
+        sync: false   # Set to your Dark Matter Bank TRON TRC-20 address
+      - key: VITE_ALIPAY_QR_URL
+        sync: false
+      - key: VITE_WECHAT_QR_URL
+        sync: false
+      - key: VITE_LIANLIAN_QR_URL
+        sync: false
