@@ -51,7 +51,15 @@
 ## Phase 9: Testing & Checkpoint
 - [x] Vitest unit tests for core procedures (products, orders, cart, auth, admin guard)
 - [x] Database migration (pnpm db:push)
-- [ ] Save checkpoint
+- [x] Save checkpoint
 
 ## Seed Data
-- [ ] Sample categories and products for demo (to be added via Admin panel)
+- [x] Sample categories and products seeded via seed.mjs
+
+## Round 2: Payment & Products
+
+- [x] Add Alipay, WeChat Pay, LianLian Pay payment methods
+- [x] Configure USDD TRON TRC-20 wallet address (via VITE_USDD_PAYMENT_ADDRESS env var)
+- [x] Seed 25 Yiwu plastic/daily goods products with real CDN images
+- [x] Add 5 product categories: Plastic Kitchenware, Storage, Bottles & Cups, Daily Essentials, Cleaning
+- [ ] Domain binding guide for www.daiizen.com (Alibaba Cloud)
