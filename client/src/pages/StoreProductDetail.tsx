@@ -4,18 +4,105 @@ import { Link, useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, Store, Package, ExternalLink, ShoppingCart, Tag } from "lucide-react";
+import { ArrowLeft, Store, Package, ExternalLink, ShoppingCart, Tag, Star, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const PLATFORM_LABELS: Record<string, string> = {
-  tiktok: "TikTok", pinduoduo: "拼多多", xiaohongshu: "小红书",
-  amazon: "Amazon", shein: "SHEIN", taobao: "淘宝", jd: "京东",
-  lazada: "Lazada", shopee: "Shopee", other: "其他",
+  tiktok: "TikTok", pinduoduo: "Pinduoduo", xiaohongshu: "Xiaohongshu",
+  amazon: "Amazon", shein: "SHEIN", taobao: "Taobao", jd: "JD.com",
+  lazada: "Lazada", shopee: "Shopee", other: "Other",
 };
+
+function StarRating({ rating, size = 4 }: { rating: number; size?: number }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((s) => (
+        <Star
+          key={s}
+          className={`w-${size} h-${size} ${
+            s <= Math.round(rating) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30"
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ReviewsSection({ storeProductId }: { storeProductId: number }) {
+  const { t } = useLanguage();
+  const { data: reviews, isLoading } = trpc.reviews.getByProduct.useQuery({ storeProductId });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3 mt-8">
+        <div className="h-5 bg-muted rounded w-32 animate-pulse" />
+        <div className="h-20 bg-muted rounded animate-pulse" />
+      </div>
+    );
+  }
+
+  const reviewList = reviews ?? [];
+  const avgRating = reviewList.length > 0
+    ? reviewList.reduce((sum, r) => sum + r.rating, 0) / reviewList.length
+    : 0;
+
+  return (
+    <div className="mt-10 border-t pt-8">
+      <div className="flex items-center gap-3 mb-6">
+        <MessageSquare className="w-5 h-5 text-primary" />
+        <h2 className="text-lg font-semibold">
+          {t("review.title") || "Customer Reviews"}
+        </h2>
+        {reviewList.length > 0 && (
+          <div className="flex items-center gap-2">
+            <StarRating rating={avgRating} size={4} />
+            <span className="text-sm text-muted-foreground">
+              {avgRating.toFixed(1)} ({reviewList.length})
+            </span>
+          </div>
+        )}
+      </div>
+
+      {reviewList.length === 0 ? (
+        <div className="text-center py-10 text-muted-foreground">
+          <Star className="w-10 h-10 mx-auto mb-3 opacity-20" />
+          <p className="text-sm">{t("review.no_reviews") || "No reviews yet. Be the first to review!"}</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {reviewList.map((review) => (
+            <Card key={review.id} className="border-border/60">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+                      {review.userId.toString().slice(-2)}
+                    </div>
+                    <div>
+                      <StarRating rating={review.rating} size={3} />
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {new Date(review.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {review.comment && (
+                  <p className="text-sm text-foreground/80 mt-3 leading-relaxed">{review.comment}</p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function StoreProductDetail() {
   const { slug: storeSlug, productSlug } = useParams<{ slug: string; productSlug: string }>();
   const [selectedImage, setSelectedImage] = useState(0);
+  const { t } = useLanguage();
 
   const { data, isLoading, error } = trpc.store.getStoreProduct.useQuery(
     { slug: productSlug! },
@@ -34,9 +121,12 @@ export default function StoreProductDetail() {
     return (
       <div className="container py-16 text-center space-y-4">
         <Package className="w-12 h-12 mx-auto text-muted-foreground" />
-        <h2 className="text-xl font-semibold">商品不存在</h2>
+        <h2 className="text-xl font-semibold">{t("common.error") || "Product not found"}</h2>
         <Button variant="outline" asChild>
-          <Link href={`/store/${storeSlug}`}>返回店铺</Link>
+          <Link href={`/store/${storeSlug}`}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            {t("common.back") || "Back to Store"}
+          </Link>
         </Button>
       </div>
     );
@@ -50,7 +140,9 @@ export default function StoreProductDetail() {
     <div className="container py-6 max-w-5xl">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6 flex-wrap">
-        <Link href="/marketplace" className="hover:text-foreground transition-colors">商城</Link>
+        <Link href="/marketplace" className="hover:text-foreground transition-colors">
+          {t("nav.marketplace") || "Marketplace"}
+        </Link>
         <span>/</span>
         <Link href={`/store/${storeSlug}`} className="hover:text-foreground transition-colors">
           {store?.name ?? storeSlug}
@@ -98,7 +190,7 @@ export default function StoreProductDetail() {
           {product.externalPlatform && (
             <Badge variant="secondary" className="gap-1">
               <ExternalLink className="w-3 h-3" />
-              来自 {PLATFORM_LABELS[product.externalPlatform] ?? product.externalPlatform}
+              {t("storeproduct.from") || "From"} {PLATFORM_LABELS[product.externalPlatform] ?? product.externalPlatform}
             </Badge>
           )}
 
@@ -118,16 +210,18 @@ export default function StoreProductDetail() {
 
           {/* Stock */}
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">库存：</span>
+            <span className="text-muted-foreground">{t("products.qty") || "Stock"}:</span>
             <span className={product.stock > 0 ? "text-green-600 font-medium" : "text-destructive"}>
-              {product.stock > 0 ? `${product.stock} 件` : "已售罄"}
+              {product.stock > 0
+                ? `${product.stock} ${t("storeproduct.units") || "units"}`
+                : t("products.out_stock") || "Sold out"}
             </span>
           </div>
 
           {/* Description */}
           {product.description && (
             <div className="space-y-1">
-              <p className="text-sm font-medium">商品描述</p>
+              <p className="text-sm font-medium">{t("storeproduct.description") || "Description"}</p>
               <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>
             </div>
           )}
@@ -149,21 +243,23 @@ export default function StoreProductDetail() {
                 <Button className="w-full gap-2" asChild>
                   <a href={product.externalUrl} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="w-4 h-4" />
-                    前往 {PLATFORM_LABELS[product.externalPlatform ?? "other"] ?? "原平台"} 购买
+                    {t("storeproduct.buy_on") || "Buy on"} {PLATFORM_LABELS[product.externalPlatform ?? "other"] ?? "Original Platform"}
                   </a>
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">
-                  此商品将跳转至原平台完成购买
+                  {t("storeproduct.redirect_note") || "This product will redirect to the original platform"}
                 </p>
               </div>
             ) : (
               <Button
                 className="w-full gap-2"
                 disabled={product.stock === 0}
-                onClick={() => toast.info("购物车功能即将开放")}
+                onClick={() => toast.info(t("common.coming_soon") || "Coming soon")}
               >
                 <ShoppingCart className="w-4 h-4" />
-                {product.stock > 0 ? "加入购物车" : "已售罄"}
+                {product.stock > 0
+                  ? t("products.add_cart") || "Add to Cart"
+                  : t("products.out_stock") || "Sold Out"}
               </Button>
             )}
           </div>
@@ -181,16 +277,23 @@ export default function StoreProductDetail() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{store.name}</p>
-                  <p className="text-xs text-muted-foreground">查看店铺更多商品</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("storeproduct.view_more") || "View more products from this store"}
+                  </p>
                 </div>
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={`/store/${store.slug}`}>进店</Link>
+                  <Link href={`/store/${store.slug}`}>
+                    {t("storeproduct.enter_store") || "Visit Store"}
+                  </Link>
                 </Button>
               </CardContent>
             </Card>
           )}
         </div>
       </div>
+
+      {/* Reviews Section */}
+      <ReviewsSection storeProductId={product.id} />
     </div>
   );
 }

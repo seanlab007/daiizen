@@ -1,6 +1,6 @@
 import { and, desc, eq, ilike, inArray, like, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, products, categories, cartItems, orders, orderItems, addresses, exchangeRates, chatMessages } from "../drizzle/schema";
+import { InsertUser, users, products, categories, cartItems, orders, orderItems, addresses, exchangeRates, chatMessages, userNotifications } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { nanoid } from "nanoid";
 
@@ -1032,4 +1032,62 @@ export async function processReferralRewardsForOrder(orderId: number, buyerUserI
     firstPurchaseDone: 1,
     firstPurchaseAt: new Date(),
   }).where(eq(referralRelations.userId, buyerUserId));
+}
+
+// ─── User Notifications ───────────────────────────────────────────────────────
+
+export async function createUserNotification(data: {
+  userId: number;
+  type: "new_order" | "order_status" | "withdrawal_status" | "deposit_status" | "referral_reward" | "system";
+  title: string;
+  body: string;
+  link?: string;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+  await db.insert(userNotifications).values({
+    userId: data.userId,
+    type: data.type,
+    title: data.title,
+    body: data.body,
+    link: data.link,
+    isRead: 0,
+  });
+}
+
+export async function getUserNotifications(userId: number, limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(userNotifications)
+    .where(eq(userNotifications.userId, userId))
+    .orderBy(desc(userNotifications.createdAt))
+    .limit(limit);
+}
+
+export async function getUnreadNotificationCount(userId: number) {
+  const db = await getDb();
+  if (!db) return 0;
+  const [row] = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(userNotifications)
+    .where(and(eq(userNotifications.userId, userId), eq(userNotifications.isRead, 0)));
+  return Number(row?.count ?? 0);
+}
+
+export async function markNotificationsRead(userId: number, ids?: number[]) {
+  const db = await getDb();
+  if (!db) return;
+  if (ids && ids.length > 0) {
+    await db
+      .update(userNotifications)
+      .set({ isRead: 1 })
+      .where(and(eq(userNotifications.userId, userId), inArray(userNotifications.id, ids)));
+  } else {
+    await db
+      .update(userNotifications)
+      .set({ isRead: 1 })
+      .where(eq(userNotifications.userId, userId));
+  }
 }

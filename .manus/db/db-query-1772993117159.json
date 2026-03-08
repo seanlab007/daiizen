@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS `userNotifications` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `userId` int NOT NULL,\n  `type` enum('new_order','order_status','withdrawal_status','deposit_status','referral_reward','system') NOT NULL,\n  `title` varchar(255) NOT NULL,\n  `body` text NOT NULL,\n  `link` varchar(500) DEFAULT NULL,\n  `isRead` int NOT NULL DEFAULT 0,\n  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`),\n  KEY `idx_userId` (`userId`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 1DMtBSituR1Li7R.root --database ebebYjMErshCmhKiJP5h4X --execute CREATE TABLE IF NOT EXISTS `userNotifications` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `userId` int NOT NULL,\n  `type` enum('new_order','order_status','withdrawal_status','deposit_status','referral_reward','system') NOT NULL,\n  `title` varchar(255) NOT NULL,\n  `body` text NOT NULL,\n  `link` varchar(500) DEFAULT NULL,\n  `isRead` int NOT NULL DEFAULT 0,\n  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`),\n  KEY `idx_userId` (`userId`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1972
+}

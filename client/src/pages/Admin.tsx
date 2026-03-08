@@ -20,7 +20,6 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function Admin() {
-  const { t } = useLanguage();
   const { user, isAuthenticated } = useAuth();
   const params = useParams<{ section?: string }>();
   const [, setLocation] = useLocation();
@@ -39,25 +38,27 @@ export default function Admin() {
   const { data: pendingDeposits, refetch: refetchDeposits } = trpc.store.adminListDeposits.useQuery({ status: "pending", page: 1, limit: 50 }, { enabled: section === "deposits" && isAuthenticated && user?.role === "admin" });
   const { data: pendingUsddDeposits, refetch: refetchUsddDeposits } = trpc.wallet.adminGetPendingDeposits.useQuery(undefined, { enabled: section === "usdd-deposits" && isAuthenticated && user?.role === "admin" });
   const { data: allWithdrawals, refetch: refetchWithdrawals } = trpc.withdrawal.adminGetAll.useQuery({ status: undefined }, { enabled: section === "usdd-withdrawals" && isAuthenticated && user?.role === "admin" });
-  const confirmUsddDepositMutation = trpc.wallet.adminConfirmDeposit.useMutation({ onSuccess: () => { refetchUsddDeposits(); toast.success("充值已确认，余额已更新"); } });
-  const rejectUsddDepositMutation = trpc.wallet.adminRejectDeposit.useMutation({ onSuccess: () => { refetchUsddDeposits(); toast.success("充值已拒绝"); } });
-  const approveWithdrawalMutation = trpc.withdrawal.adminApprove.useMutation({ onSuccess: () => { refetchWithdrawals(); toast.success("提现已批准"); } });
-  const rejectWithdrawalMutation = trpc.withdrawal.adminReject.useMutation({ onSuccess: () => { refetchWithdrawals(); toast.success("提现已拒绝，余额已退回"); } });
+  const { t } = useLanguage();
+  // admin mutations
+  const confirmUsddDepositMutation = trpc.wallet.adminConfirmDeposit.useMutation({ onSuccess: () => { refetchUsddDeposits(); toast.success(t("admin.deposit_confirmed")); } });
+  const rejectUsddDepositMutation = trpc.wallet.adminRejectDeposit.useMutation({ onSuccess: () => { refetchUsddDeposits(); toast.success(t("admin.deposit_rejected")); } });
+  const approveWithdrawalMutation = trpc.withdrawal.adminApprove.useMutation({ onSuccess: () => { refetchWithdrawals(); toast.success(t("admin.withdrawal_approved")); } });
+  const rejectWithdrawalMutation = trpc.withdrawal.adminReject.useMutation({ onSuccess: () => { refetchWithdrawals(); toast.success(t("admin.withdrawal_rejected")); } });
   const [markPaidForm, setMarkPaidForm] = useState<{ id: number; txHash: string } | null>(null);
-  const markPaidMutation = trpc.withdrawal.adminMarkPaid.useMutation({ onSuccess: () => { refetchWithdrawals(); setMarkPaidForm(null); toast.success("已标记为已支付"); } });
+  const markPaidMutation = trpc.withdrawal.adminMarkPaid.useMutation({ onSuccess: () => { refetchWithdrawals(); setMarkPaidForm(null); toast.success(t("admin.marked_paid")); } });
   const { data: marketplaceConfig, refetch: refetchConfig } = trpc.store.getConfig.useQuery(undefined, { enabled: section === "marketplace-config" && isAuthenticated && user?.role === "admin" });
   const [configForm, setConfigForm] = useState({ commissionRate: "", depositAmount: "", depositWalletAddress: "" });
   const [paymentForm, setPaymentForm] = useState({ method: "alipay", accountName: "", accountNumber: "", qrCodeUrl: "", isEnabled: true });
   const { data: paymentMethods, refetch: refetchPaymentMethods } = trpc.payment.adminGetPaymentConfigs.useQuery(undefined, { enabled: section === "payment-config" && isAuthenticated && user?.role === "admin" });
-  const setPaymentMethodMutation = trpc.payment.adminUpdatePaymentConfig.useMutation({ onSuccess: () => { refetchPaymentMethods(); toast.success("收款方式已更新"); setPaymentForm({ method: "alipay", accountName: "", accountNumber: "", qrCodeUrl: "", isEnabled: true }); } });
-  const deletePaymentMethodMutation = trpc.payment.adminUpdatePaymentConfig.useMutation({ onSuccess: () => { refetchPaymentMethods(); toast.success("已删除"); } });
-  const approveStoreMutation = trpc.store.adminApproveStore.useMutation({ onSuccess: () => { refetchStores(); toast.success("店铺已通过"); } });
-  const rejectStoreMutation = trpc.store.adminRejectStore.useMutation({ onSuccess: () => { refetchStores(); toast.success("店铺已拒绝"); } });
-  const suspendStoreMutation = trpc.store.adminSuspendStore.useMutation({ onSuccess: () => { refetchStores(); toast.success("店铺已暂停"); } });
-  const reinstateStoreMutation = trpc.store.adminReinstateStore.useMutation({ onSuccess: () => { refetchStores(); toast.success("店铺已恢复"); } });
-  const confirmDepositMutation = trpc.store.adminConfirmDeposit.useMutation({ onSuccess: () => { refetchDeposits(); toast.success("保证金已确认"); } });
-  const refundDepositMutation = trpc.store.adminRefundDeposit.useMutation({ onSuccess: () => { refetchDeposits(); toast.success("已拒绝保证金"); } });
-  const updateConfigMutation = trpc.store.adminSetConfig.useMutation({ onSuccess: () => { refetchConfig(); toast.success("配置已更新"); } });
+  const setPaymentMethodMutation = trpc.payment.adminUpdatePaymentConfig.useMutation({ onSuccess: () => { refetchPaymentMethods(); toast.success(t("common.saved")); setPaymentForm({ method: "alipay", accountName: "", accountNumber: "", qrCodeUrl: "", isEnabled: true }); } });
+  const deletePaymentMethodMutation = trpc.payment.adminUpdatePaymentConfig.useMutation({ onSuccess: () => { refetchPaymentMethods(); toast.success(t("common.success")); } });
+  const approveStoreMutation = trpc.store.adminApproveStore.useMutation({ onSuccess: () => { refetchStores(); toast.success(t("admin.store_approved")); } });
+  const rejectStoreMutation = trpc.store.adminRejectStore.useMutation({ onSuccess: () => { refetchStores(); toast.success(t("admin.store_rejected")); } });
+  const suspendStoreMutation = trpc.store.adminSuspendStore.useMutation({ onSuccess: () => { refetchStores(); toast.success(t("admin.store_suspended")); } });
+  const reinstateStoreMutation = trpc.store.adminReinstateStore.useMutation({ onSuccess: () => { refetchStores(); toast.success(t("admin.store_reinstated")); } });
+  const confirmDepositMutation = trpc.store.adminConfirmDeposit.useMutation({ onSuccess: () => { refetchDeposits(); toast.success(t("admin.deposit_confirmed")); } });
+  const refundDepositMutation = trpc.store.adminRefundDeposit.useMutation({ onSuccess: () => { refetchDeposits(); toast.success(t("admin.deposit_rejected")); } });
+  const updateConfigMutation = trpc.store.adminSetConfig.useMutation({ onSuccess: () => { refetchConfig(); toast.success(t("common.saved")); } });
   const { data: products, refetch: refetchProducts } = trpc.products.list.useQuery({ page: 1, limit: 50 }, { enabled: section === "products" });
   const { data: orders, refetch: refetchOrders } = trpc.admin.orders.useQuery(undefined, { enabled: section === "orders" });
   const { data: cats, refetch: refetchCats } = trpc.categories.list.useQuery(undefined, { enabled: section === "categories" });
@@ -82,12 +83,12 @@ export default function Admin() {
     { id: "orders", label: "Orders", icon: ShoppingBag },
     { id: "categories", label: "Categories", icon: Package },
     { id: "rates", label: "Exchange Rates", icon: RefreshCw },
-    { id: "stores", label: "店铺管理", icon: Store },
-    { id: "deposits", label: "保证金", icon: DollarSign },
-    { id: "marketplace-config", label: "市场配置", icon: Settings },
-    { id: "payment-config", label: "收款配置", icon: CreditCard },
-    { id: "usdd-deposits", label: "USDD充值审核", icon: DollarSign },
-    { id: "usdd-withdrawals", label: "卖家提现", icon: Banknote },
+    { id: "stores", label: t("admin.stores"), icon: Store },
+    { id: "deposits", label: t("admin.deposits"), icon: DollarSign },
+    { id: "marketplace-config", label: t("admin.marketplace_config"), icon: Settings },
+    { id: "payment-config", label: t("admin.payment_config"), icon: CreditCard },
+    { id: "usdd-deposits", label: t("admin.usdd_deposits"), icon: DollarSign },
+    { id: "usdd-withdrawals", label: t("admin.usdd_withdrawals"), icon: Banknote },
   ];
 
   return (
@@ -283,18 +284,18 @@ export default function Admin() {
         {section === "stores" && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-lg font-semibold mb-3">待审核店铺</h2>
+              <h2 className="text-lg font-semibold mb-3">{t("admin.pending_stores")}</h2>
               {pendingStores?.stores.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4">暂无待审核店铺</p>
+                <p className="text-sm text-muted-foreground py-4">{t("admin.no_pending_stores")}</p>
               ) : (
                 <div className="rounded-xl border border-border/60 overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/40">
                       <tr>
-                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">店铺</th>
-                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">卖家</th>
-                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">申请时间</th>
-                        <th className="text-right p-3 text-xs font-medium text-muted-foreground">操作</th>
+                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.store")}</th>
+                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.seller")}</th>
+                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.applied_at")}</th>
+                        <th className="text-right p-3 text-xs font-medium text-muted-foreground">{t("admin.actions")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
@@ -311,10 +312,10 @@ export default function Admin() {
                           <td className="p-3">
                             <div className="flex items-center justify-end gap-2">
                               <Button size="sm" className="h-7 text-xs gap-1" onClick={() => approveStoreMutation.mutate({ id: store.id })} disabled={approveStoreMutation.isPending}>
-                                <CheckCircle className="w-3 h-3" /> 通过
+                                <CheckCircle className="w-3 h-3" /> {t("admin.approve")}
                               </Button>
-                              <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" onClick={() => { const note = prompt("拒绝原因（可选）"); trpc.useUtils().store.adminListStores.invalidate(); rejectStoreMutation.mutate({ id: store.id, adminNote: note ?? "" }); }} disabled={approveStoreMutation.isPending}>
-                                <XCircle className="w-3 h-3" /> 拒绝
+                              <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" onClick={() => { const note = prompt(t("admin.reject_reason")); trpc.useUtils().store.adminListStores.invalidate(); rejectStoreMutation.mutate({ id: store.id, adminNote: note ?? "" }); }} disabled={approveStoreMutation.isPending}>
+                                <XCircle className="w-3 h-3" /> {t("admin.reject")}
                               </Button>
                             </div>
                           </td>
@@ -326,15 +327,15 @@ export default function Admin() {
               )}
             </div>
             <div>
-              <h2 className="text-lg font-semibold mb-3">全部店铺</h2>
+              <h2 className="text-lg font-semibold mb-3">{t("admin.all_stores")}</h2>
               <div className="rounded-xl border border-border/60 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/40">
                     <tr>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">店铺</th>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">状态</th>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">商品数</th>
-                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">操作</th>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.store")}</th>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.status")}</th>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.product_count")}</th>
+                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">{t("admin.actions")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50">
@@ -352,13 +353,13 @@ export default function Admin() {
                         <td className="p-3">
                           <div className="flex items-center justify-end gap-2">
                             {store.status === "active" && (
-                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => suspendStoreMutation.mutate({ id: store.id, adminNote: prompt("暂停原因") ?? "" })} disabled={suspendStoreMutation.isPending}>
-                                暂停
+                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => suspendStoreMutation.mutate({ id: store.id, adminNote: prompt(t("admin.suspend_reason")) ?? "" })} disabled={suspendStoreMutation.isPending}>
+                                {t("admin.suspend")}
                               </Button>
                             )}
                             {store.status === "suspended" && (
                               <Button size="sm" className="h-7 text-xs" onClick={() => reinstateStoreMutation.mutate({ id: store.id })} disabled={reinstateStoreMutation.isPending}>
-                                恢复
+                                {t("admin.reinstate")}
                               </Button>
                             )}
                           </div>
@@ -375,19 +376,19 @@ export default function Admin() {
         {/* Deposits */}
         {section === "deposits" && (
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">保证金管理</h2>
+            <h2 className="text-lg font-semibold">{t("admin.deposit_management")}</h2>
             {pendingDeposits?.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">暂无待确认保证金</p>
+              <p className="text-sm text-muted-foreground py-4">{t("admin.no_pending_deposits")}</p>
             ) : (
               <div className="rounded-xl border border-border/60 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/40">
                     <tr>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">店铺</th>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">金额</th>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">交易哈希</th>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">状态</th>
-                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">操作</th>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.store")}</th>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.amount")}</th>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.tx_hash")}</th>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.status")}</th>
+                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">{t("admin.actions")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50">
@@ -408,10 +409,10 @@ export default function Admin() {
                             {dep.status === "pending" && (
                               <>
                                 <Button size="sm" className="h-7 text-xs" onClick={() => confirmDepositMutation.mutate({ id: dep.deposit.id })} disabled={confirmDepositMutation.isPending}>
-                                  确认收款
+                                  {t("admin.confirm_payment")}
                                 </Button>
                                 <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => refundDepositMutation.mutate({ id: dep.deposit.id })} disabled={refundDepositMutation.isPending}>
-                                  拒绝
+                                  {t("admin.reject")}
                                 </Button>
                               </>
                             )}
@@ -429,31 +430,31 @@ export default function Admin() {
         {/* Marketplace Config */}
         {section === "marketplace-config" && (
           <div className="max-w-md space-y-6">
-            <h2 className="text-lg font-semibold">市场平台配置</h2>
+            <h2 className="text-lg font-semibold">{t("admin.marketplace_config")}</h2>
             <div className="space-y-4 p-5 rounded-xl border border-border/60 bg-card">
               <div>
-                <Label className="text-xs">平台手续费率（当前：{marketplaceConfig ? (marketplaceConfig.commissionRate * 100).toFixed(1) : "-"}%）</Label>
+                <Label className="text-xs">{t("admin.commission_rate")} ({marketplaceConfig ? (marketplaceConfig.commissionRate * 100).toFixed(1) : "-"}%)</Label>
                 <Input
                   className="h-8 text-sm mt-1"
-                  placeholder="如 0.05 表示 5%"
+                  placeholder="e.g. 0.05 = 5%"
                   value={configForm.commissionRate}
                   onChange={e => setConfigForm({ ...configForm, commissionRate: e.target.value })}
                 />
               </div>
               <div>
-                <Label className="text-xs">开店保证金（USDD）（当前：{marketplaceConfig?.depositAmount ?? "-"}）</Label>
+                <Label className="text-xs">{t("admin.deposit_amount")} ({marketplaceConfig?.depositAmount ?? "-"} USDD)</Label>
                 <Input
                   className="h-8 text-sm mt-1"
-                  placeholder="如 50"
+                  placeholder="e.g. 50"
                   value={configForm.depositAmount}
                   onChange={e => setConfigForm({ ...configForm, depositAmount: e.target.value })}
                 />
               </div>
               <div>
-                <Label className="text-xs">收款钱包地址（USDD TRC-20）</Label>
+                <Label className="text-xs">{t("admin.wallet_address")} (USDD TRC-20)</Label>
                 <Input
                   className="h-8 text-sm mt-1"
-                  placeholder="TRC-20 地址"
+                  placeholder="TRC-20 address"
                   value={configForm.depositWalletAddress}
                   onChange={e => setConfigForm({ ...configForm, depositWalletAddress: e.target.value })}
                 />
@@ -464,11 +465,11 @@ export default function Admin() {
                   if (configForm.commissionRate) await updateConfigMutation.mutateAsync({ key: "commission_rate", value: configForm.commissionRate });
                   if (configForm.depositAmount) await updateConfigMutation.mutateAsync({ key: "deposit_amount", value: configForm.depositAmount });
                   if (configForm.depositWalletAddress) await updateConfigMutation.mutateAsync({ key: "deposit_wallet_address", value: configForm.depositWalletAddress });
-                  if (!configForm.commissionRate && !configForm.depositAmount && !configForm.depositWalletAddress) toast.info("请输入要修改的配置项");
+                  if (!configForm.commissionRate && !configForm.depositAmount && !configForm.depositWalletAddress) toast.info(t("admin.enter_config"));
                 }}
                 disabled={updateConfigMutation.isPending}
               >
-                {updateConfigMutation.isPending ? "保存中..." : "保存配置"}
+                {updateConfigMutation.isPending ? t("common.saving") : t("common.save")}
               </Button>
             </div>
           </div>
@@ -476,13 +477,13 @@ export default function Admin() {
         {/* Payment Config */}
         {section === "payment-config" && (
           <div className="max-w-2xl space-y-6">
-            <h2 className="text-lg font-semibold">收款方式配置</h2>
-            <p className="text-sm text-muted-foreground">配置支付宝、微信、銀联收款账户，卖家缴交保证金时将看到这些账户信息</p>
+            <h2 className="text-lg font-semibold">{t("admin.payment_config")}</h2>
+            <p className="text-sm text-muted-foreground">{t("admin.payment_config_desc")}</p>
 
             {/* Existing methods */}
             {paymentMethods && paymentMethods.length > 0 && (
               <div className="space-y-3">
-                <h3 className="text-sm font-medium">已配置收款方式</h3>
+                <h3 className="text-sm font-medium">{t("admin.configured_methods")}</h3>
                 {paymentMethods.map((m: any) => (
                   <div key={m.method} className="flex items-center justify-between p-4 rounded-xl border border-border/60 bg-card">
                     <div className="flex items-center gap-3">
@@ -492,16 +493,16 @@ export default function Admin() {
                         {m.method === "alipay" || m.method === "wechat" ? <Smartphone className="w-4 h-4" /> : <CreditCard className="w-4 h-4" />}
                       </div>
                       <div>
-                        <div className="text-sm font-medium">{m.method === "alipay" ? "支付宝" : m.method === "wechat" ? "微信支付" : m.method === "unionpay" ? "銀联转账" : m.method}</div>
+                        <div className="text-sm font-medium">{m.method === "alipay" ? "Alipay" : m.method === "wechat" ? "WeChat Pay" : m.method === "unionpay" ? "UnionPay" : m.method}</div>
                         <div className="text-xs text-muted-foreground">{m.accountName} · {m.accountNumber}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${m.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                        {m.isActive ? "启用" : "关闭"}
+                        {m.isActive ? t("common.active") : t("common.inactive")}
                       </span>
                       <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => deletePaymentMethodMutation.mutate({ method: m.method, accountName: m.accountName, accountNumber: m.accountNumber, isEnabled: false })}>
-                        删除
+                        {t("common.delete")}
                       </Button>
                     </div>
                   </div>
@@ -511,41 +512,41 @@ export default function Admin() {
 
             {/* Add/Edit method */}
             <div className="p-5 rounded-xl border border-border/60 bg-card space-y-4">
-              <h3 className="text-sm font-medium">添加/更新收款方式</h3>
+              <h3 className="text-sm font-medium">{t("admin.add_payment_method")}</h3>
               <div>
-                <Label className="text-xs">支付方式</Label>
+                <Label className="text-xs">{t("admin.payment_method")}</Label>
                 <select
                   value={paymentForm.method}
                   onChange={e => setPaymentForm({ ...paymentForm, method: e.target.value })}
                   className="w-full mt-1 h-8 text-sm rounded-md border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring"
                 >
-                  <option value="alipay">支付宝</option>
-                  <option value="wechat">微信支付</option>
-                  <option value="unionpay">銀联转账</option>
+                  <option value="alipay">Alipay</option>
+                  <option value="wechat">WeChat Pay</option>
+                  <option value="unionpay">UnionPay</option>
                 </select>
               </div>
               <div>
-                <Label className="text-xs">收款人姓名 / 商户名</Label>
-                <Input className="h-8 text-sm mt-1" placeholder="如：张三 / Daiizen商贸" value={paymentForm.accountName} onChange={e => setPaymentForm({ ...paymentForm, accountName: e.target.value })} />
+                <Label className="text-xs">{t("admin.account_name")}</Label>
+                <Input className="h-8 text-sm mt-1" placeholder="e.g. John / Daiizen" value={paymentForm.accountName} onChange={e => setPaymentForm({ ...paymentForm, accountName: e.target.value })} />
               </div>
               <div>
-                <Label className="text-xs">手机号 / 账号</Label>
-                <Input className="h-8 text-sm mt-1" placeholder="支付宝手机号或銀行卡号" value={paymentForm.accountNumber} onChange={e => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })} />
+                <Label className="text-xs">{t("admin.account_number")}</Label>
+                <Input className="h-8 text-sm mt-1" placeholder="Phone / account number" value={paymentForm.accountNumber} onChange={e => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })} />
               </div>
               <div>
-                <Label className="text-xs">收款二维码 URL（可选）</Label>
-                <Input className="h-8 text-sm mt-1" placeholder="二维码图片的直链 URL" value={paymentForm.qrCodeUrl} onChange={e => setPaymentForm({ ...paymentForm, qrCodeUrl: e.target.value })} />
+                <Label className="text-xs">{t("admin.qr_code_url")}</Label>
+                <Input className="h-8 text-sm mt-1" placeholder="QR code image URL (optional)" value={paymentForm.qrCodeUrl} onChange={e => setPaymentForm({ ...paymentForm, qrCodeUrl: e.target.value })} />
               </div>
               <div className="flex items-center gap-2">
                 <input type="checkbox" checked={paymentForm.isEnabled} onChange={e => setPaymentForm({ ...paymentForm, isEnabled: e.target.checked })} className="rounded" />
-                <Label className="text-xs cursor-pointer">启用此收款方式</Label>
+                <Label className="text-xs cursor-pointer">{t("admin.enable_method")}</Label>
               </div>
               <Button
                 size="sm"
                 onClick={() => setPaymentMethodMutation.mutate({ method: paymentForm.method as any, accountName: paymentForm.accountName, accountNumber: paymentForm.accountNumber, qrCodeUrl: paymentForm.qrCodeUrl || undefined, isEnabled: paymentForm.isEnabled })}
                 disabled={setPaymentMethodMutation.isPending || !paymentForm.accountName || !paymentForm.accountNumber}
               >
-                {setPaymentMethodMutation.isPending ? "保存中..." : "保存收款方式"}
+                {setPaymentMethodMutation.isPending ? t("common.saving") : t("admin.save_payment_method")}
               </Button>
             </div>
           </div>
@@ -553,12 +554,12 @@ export default function Admin() {
         {/* USDD Deposit Review */}
         {section === "usdd-deposits" && (
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">USDD 充值审核</h2>
-            <p className="text-sm text-muted-foreground">用户提交充值申请后需要管理员手动确认，确认后余额自动更新。</p>
+            <h2 className="text-lg font-semibold">{t("admin.usdd_deposits")}</h2>
+            <p className="text-sm text-muted-foreground">{t("admin.usdd_deposits_desc")}</p>
             {!pendingUsddDeposits || pendingUsddDeposits.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <div className="text-4xl mb-2">✅</div>
-                <p>暂无待审核充值申请</p>
+                <p>{t("admin.no_pending_usdd_deposits")}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -580,10 +581,10 @@ export default function Admin() {
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => confirmUsddDepositMutation.mutate({ txId: tx.id })} disabled={confirmUsddDepositMutation.isPending}>
-                        ✓ 确认充值
+                        ✓ {t("admin.confirm_deposit")}
                       </Button>
-                      <Button size="sm" variant="destructive" onClick={() => rejectUsddDepositMutation.mutate({ txId: tx.id, adminNote: "拒绝" })} disabled={rejectUsddDepositMutation.isPending}>
-                        ✗ 拒绝
+                      <Button size="sm" variant="destructive" onClick={() => rejectUsddDepositMutation.mutate({ txId: tx.id, adminNote: "rejected" })} disabled={rejectUsddDepositMutation.isPending}>
+                        ✗ {t("admin.reject")}
                       </Button>
                     </div>
                   </div>
@@ -596,11 +597,11 @@ export default function Admin() {
         {/* USDD Withdrawal Management */}
         {section === "usdd-withdrawals" && (
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">卖家提现管理</h2>
+            <h2 className="text-lg font-semibold">{t("admin.usdd_withdrawals")}</h2>
             {!allWithdrawals || allWithdrawals.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <div className="text-4xl mb-2">📋</div>
-                <p>暂无提现申请</p>
+                <p>{t("admin.no_withdrawals")}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -612,7 +613,7 @@ export default function Admin() {
                         <div className="text-xs font-mono text-muted-foreground mt-0.5">{req.walletAddress}</div>
                         <div className="text-xs text-muted-foreground">Store ID: {req.storeId} | {new Date(req.createdAt).toLocaleString()}</div>
                         {req.txHash && <div className="text-xs font-mono text-green-600 mt-1">TxHash: {req.txHash}</div>}
-                        {req.rejectionReason && <div className="text-xs text-red-500 mt-1">拒绝原因: {req.rejectionReason}</div>}
+                        {req.rejectionReason && <div className="text-xs text-red-500 mt-1">{t("admin.rejection_reason")}: {req.rejectionReason}</div>}
                       </div>
                       <span className={`text-xs font-medium px-2 py-1 rounded-full ${
                         req.status === "paid" ? "bg-green-100 text-green-700" :
@@ -624,10 +625,10 @@ export default function Admin() {
                     {req.status === "pending" && (
                       <div className="flex gap-2">
                         <Button size="sm" onClick={() => approveWithdrawalMutation.mutate({ id: req.id })} disabled={approveWithdrawalMutation.isPending}>
-                          ✓ 批准
+                          ✓ {t("admin.approve")}
                         </Button>
-                        <Button size="sm" variant="destructive" onClick={() => rejectWithdrawalMutation.mutate({ id: req.id, rejectionReason: "管理员拒绝" })} disabled={rejectWithdrawalMutation.isPending}>
-                          ✗ 拒绝
+                        <Button size="sm" variant="destructive" onClick={() => rejectWithdrawalMutation.mutate({ id: req.id, rejectionReason: "Rejected by admin" })} disabled={rejectWithdrawalMutation.isPending}>
+                          ✗ {t("admin.reject")}
                         </Button>
                       </div>
                     )}
@@ -637,18 +638,18 @@ export default function Admin() {
                           <>
                             <Input
                               className="h-8 text-xs max-w-xs"
-                              placeholder="输入 TRC-20 TxHash"
+                              placeholder="Enter TRC-20 TxHash"
                               value={markPaidForm.txHash}
                               onChange={e => setMarkPaidForm(prev => prev ? { ...prev, txHash: e.target.value } : prev)}
                             />
                             <Button size="sm" onClick={() => { if (markPaidForm) markPaidMutation.mutate({ id: markPaidForm.id, txHash: markPaidForm.txHash }); }} disabled={!markPaidForm.txHash || markPaidMutation.isPending}>
-                              确认支付
+                              {t("admin.confirm_payment")}
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setMarkPaidForm(null)}>取消</Button>
+                            <Button size="sm" variant="ghost" onClick={() => setMarkPaidForm(null)}>{t("common.cancel")}</Button>
                           </>
                         ) : (
                           <Button size="sm" variant="outline" onClick={() => setMarkPaidForm({ id: req.id, txHash: "" })}>
-                            💸 标记已支付
+                            💸 {t("admin.mark_paid")}
                           </Button>
                         )}
                       </div>

@@ -565,3 +565,18 @@ export const productReviews = mysqlTable("productReviews", {
 });
 export type ProductReview = typeof productReviews.$inferSelect;
 export type InsertProductReview = typeof productReviews.$inferInsert;
+
+// ─── User Notifications ───────────────────────────────────────────────────────
+// In-app notifications for sellers (new orders, withdrawal status, etc.)
+export const userNotifications = mysqlTable("userNotifications", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  type: mysqlEnum("type", ["new_order", "order_status", "withdrawal_status", "deposit_status", "referral_reward", "system"]).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body").notNull(),
+  link: varchar("link", { length: 500 }),
+  isRead: int("isRead").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type UserNotification = typeof userNotifications.$inferSelect;
+export type InsertUserNotification = typeof userNotifications.$inferInsert;

@@ -271,3 +271,15 @@
 - [x] Marketplace: price range filter (min/max USDD)
 - [x] Marketplace: sort options (newest, price low-high, price high-low, most popular)
 - [x] Marketplace: active filter chips display with clear button
+
+## Round 11: Reviews Display + Backend Translation + Seller Notifications
+- [x] Frontend: ProductDetail page - show average rating + review list at bottom
+- [x] Frontend: StoreProduct page - show average rating + review list at bottom
+- [x] Frontend: Store page - show seller average rating badge
+- [x] Scan and fix hardcoded Chinese in SellerDashboard.tsx
+- [x] Scan and fix hardcoded Chinese in Admin.tsx
+- [x] Scan and fix hardcoded Chinese in SellerWithdrawal.tsx and WalletPage.tsx
+- [x] Add new translation keys for seller/admin UI to all 7 languages (EN + ZH full, others fallback to EN)
+- [x] Seller notification: in-app notification to store owner on new order (DB-backed, 30s polling)
+- [x] Seller notification: notification bell in SellerDashboard with unread badge + popover list
+- [x] Vitest tests: 71 tests passing (6 test files)

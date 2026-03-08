@@ -6,6 +6,9 @@ import { bulkImportRouter } from "./routers/bulkImport";
 import { walletRouter } from "./routers/wallet";
 import { withdrawalRouter } from "./routers/withdrawal";
 import { reviewsRouter } from "./routers/reviews";
+import { notificationsRouter } from "./routers/notifications";
+import { createUserNotification } from "./db";
+import { getStoreByUserId, getStoreById } from "./db-store";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
@@ -62,6 +65,7 @@ export const appRouter = router({
   wallet: walletRouter,
   withdrawal: withdrawalRouter,
   reviews: reviewsRouter,
+  notifications: notificationsRouter,
 
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
@@ -142,11 +146,31 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         const order = await createOrder(ctx.user.id, input.addressId, input.notes);
-        // Notify owner of new order
+        // Notify platform owner of new order
         await notifyOwner({
           title: `New Order #${order.orderNumber}`,
           content: `User ${ctx.user.name || ctx.user.email} placed order #${order.orderNumber} for ${order.totalUsdd} USDD`,
         }).catch(() => {});
+        // Notify each seller whose products are in this order
+        const orderWithItems = await getOrderById(order.id);
+        if (orderWithItems?.items && orderWithItems.items.length > 0) {
+          const sellerIds = new Set<number>();
+          for (const item of orderWithItems.items as any[]) {
+            if (item.storeId) {
+              const store = await getStoreById(item.storeId).catch(() => null);
+              if (store && store.userId && !sellerIds.has(store.userId)) {
+                sellerIds.add(store.userId);
+                await createUserNotification({
+                  userId: store.userId,
+                  type: "new_order",
+                  title: `New Order #${order.orderNumber}`,
+                  body: `You have a new order for ${order.totalUsdd} USDD. Please prepare the shipment.`,
+                  link: `/seller/orders`,
+                }).catch(() => {});
+              }
+            }
+          }
+        }
         return order;
       }),
     confirmPayment: protectedProcedure

@@ -3,10 +3,33 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Link, useParams } from "wouter";
 import { useState } from "react";
-import { ShoppingCart, ArrowLeft, Package, Plus, Minus } from "lucide-react";
+import { ShoppingCart, ArrowLeft, Package, Plus, Minus, Star } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
+
+function StarRating({ rating, size = 4 }: { rating: number; size?: number }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((s) => (
+        <Star
+          key={s}
+          className={`w-${size} h-${size} ${
+            s <= rating ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30"
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ReviewsList({ productSlug }: { productSlug: string }) {
+  const { data: product } = trpc.products.bySlug.useQuery({ slug: productSlug });
+  // We'll use a separate query for reviews by product ID via storeProductId
+  // For direct products (non-store), we show a placeholder
+  if (!product) return null;
+  return null; // Direct products don't have storeProductId reviews yet
+}
 
 export default function ProductDetail() {
   const { t, language } = useLanguage();

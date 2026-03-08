@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Link } from "wouter";
-import { Store, Package, DollarSign, TrendingUp, Plus, Link2, Trash2, Edit, ExternalLink, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { Store, Package, DollarSign, TrendingUp, Plus, Link2, Trash2, ExternalLink, AlertCircle, CheckCircle, Clock, Bell } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const PLATFORM_LABELS: Record<string, string> = {
   tiktok: "TikTok",
@@ -23,7 +25,7 @@ const PLATFORM_LABELS: Record<string, string> = {
   jd: "京东",
   lazada: "Lazada",
   shopee: "Shopee",
-  other: "其他平台",
+  other: "Other",
 };
 
 const PLATFORM_COLORS: Record<string, string> = {
@@ -40,29 +42,31 @@ const PLATFORM_COLORS: Record<string, string> = {
 };
 
 function StoreStatusBadge({ status }: { status: string }) {
+  const { t } = useLanguage();
   const config = {
-    pending: { label: "待审核", variant: "secondary" as const, icon: <Clock className="w-3 h-3" /> },
-    active: { label: "营业中", variant: "default" as const, icon: <CheckCircle className="w-3 h-3" /> },
-    suspended: { label: "已暂停", variant: "destructive" as const, icon: <AlertCircle className="w-3 h-3" /> },
-    rejected: { label: "已拒绝", variant: "destructive" as const, icon: <AlertCircle className="w-3 h-3" /> },
-  }[status] ?? { label: status, variant: "secondary" as const, icon: null };
+    pending: { key: "seller.status.pending", variant: "secondary" as const, icon: <Clock className="w-3 h-3" /> },
+    active: { key: "seller.status.active", variant: "default" as const, icon: <CheckCircle className="w-3 h-3" /> },
+    suspended: { key: "seller.status.suspended", variant: "destructive" as const, icon: <AlertCircle className="w-3 h-3" /> },
+    rejected: { key: "seller.status.rejected", variant: "destructive" as const, icon: <AlertCircle className="w-3 h-3" /> },
+  }[status] ?? { key: status, variant: "secondary" as const, icon: null };
 
   return (
     <Badge variant={config.variant} className="gap-1">
       {config.icon}
-      {config.label}
+      {t(config.key)}
     </Badge>
   );
 }
 
 // ─── Apply Store Form ─────────────────────────────────────────────────────────
 function ApplyStoreForm({ onSuccess }: { onSuccess: () => void }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState({ name: "", description: "", contactEmail: "", contactPhone: "", country: "" });
   const utils = trpc.useUtils();
   const config = trpc.store.getConfig.useQuery();
   const applyMutation = trpc.store.applyStore.useMutation({
     onSuccess: () => {
-      toast.success("申请已提交！等待管理员审核");
+      toast.success(t("common.success"));
       utils.store.myStore.invalidate();
       onSuccess();
     },
@@ -75,8 +79,8 @@ function ApplyStoreForm({ onSuccess }: { onSuccess: () => void }) {
         <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
           <Store className="w-8 h-8 text-primary" />
         </div>
-        <h2 className="text-2xl font-bold">开设您的店铺</h2>
-        <p className="text-muted-foreground">在 Daiizen 全球市场开店，触达全球买家</p>
+        <h2 className="text-2xl font-bold">{t("seller.open_store")}</h2>
+        <p className="text-muted-foreground">{t("seller.open_store_desc")}</p>
       </div>
 
       {config.data && (
@@ -84,13 +88,13 @@ function ApplyStoreForm({ onSuccess }: { onSuccess: () => void }) {
           <CardContent className="pt-4 space-y-2 text-sm">
             <div className="flex items-center gap-2 font-medium text-amber-800 dark:text-amber-200">
               <AlertCircle className="w-4 h-4" />
-              开店须知
+              {t("seller.notice_title")}
             </div>
             <ul className="space-y-1 text-amber-700 dark:text-amber-300 ml-6 list-disc">
-              <li>需缴纳保证金 <strong>{config.data.depositAmount} USDD</strong>，保证金可在退店时退还</li>
-              <li>平台收取 <strong>{(config.data.commissionRate * 100).toFixed(1)}%</strong> 手续费（每笔成交）</li>
-              <li>店铺需经管理员审核后方可营业</li>
-              <li>支持导入 TikTok、拼多多、小红书、Amazon、SHEIN 等平台商品链接</li>
+              <li>{t("seller.deposit_required")} <strong>{config.data.depositAmount} USDD</strong>{t("seller.deposit_refundable")}</li>
+              <li>{t("seller.platform_fee")} <strong>{(config.data.commissionRate * 100).toFixed(1)}%</strong> {t("seller.fee_per_order")}</li>
+              <li>{t("seller.review_required")}</li>
+              <li>{t("seller.import_note")}</li>
             </ul>
           </CardContent>
         </Card>
@@ -98,17 +102,17 @@ function ApplyStoreForm({ onSuccess }: { onSuccess: () => void }) {
 
       <div className="space-y-4">
         <div>
-          <Label>店铺名称 *</Label>
+          <Label>{t("seller.store_name")}</Label>
           <Input
-            placeholder="输入您的店铺名称"
+            placeholder={t("seller.store_name")}
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
         </div>
         <div>
-          <Label>店铺简介</Label>
+          <Label>{t("seller.store_desc")}</Label>
           <Textarea
-            placeholder="介绍您的店铺和主营商品..."
+            placeholder={t("seller.store_desc")}
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             rows={3}
@@ -116,7 +120,7 @@ function ApplyStoreForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label>联系邮箱</Label>
+            <Label>{t("seller.contact_email")}</Label>
             <Input
               type="email"
               placeholder="your@email.com"
@@ -125,18 +129,18 @@ function ApplyStoreForm({ onSuccess }: { onSuccess: () => void }) {
             />
           </div>
           <div>
-            <Label>联系电话</Label>
+            <Label>{t("seller.contact_phone")}</Label>
             <Input
-              placeholder="+86 138..."
+              placeholder="+1 234..."
               value={form.contactPhone}
               onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
             />
           </div>
         </div>
         <div>
-          <Label>所在国家/地区</Label>
+          <Label>{t("seller.country")}</Label>
           <Input
-            placeholder="中国、美国、英国..."
+            placeholder="China, USA, UK..."
             value={form.country}
             onChange={(e) => setForm({ ...form, country: e.target.value })}
           />
@@ -146,7 +150,7 @@ function ApplyStoreForm({ onSuccess }: { onSuccess: () => void }) {
           onClick={() => applyMutation.mutate(form)}
           disabled={!form.name || applyMutation.isPending}
         >
-          {applyMutation.isPending ? "提交中..." : "提交开店申请"}
+          {applyMutation.isPending ? t("common.loading") : t("nav.open_store")}
         </Button>
       </div>
     </div>
@@ -155,13 +159,14 @@ function ApplyStoreForm({ onSuccess }: { onSuccess: () => void }) {
 
 // ─── Deposit Form ─────────────────────────────────────────────────────────────
 function DepositForm() {
+  const { t } = useLanguage();
   const [txHash, setTxHash] = useState("");
   const config = trpc.store.getConfig.useQuery();
   const deposit = trpc.store.myDeposit.useQuery();
   const utils = trpc.useUtils();
   const submitMutation = trpc.store.submitDeposit.useMutation({
     onSuccess: () => {
-      toast.success("保证金记录已提交，等待管理员确认");
+      toast.success(t("common.success"));
       utils.store.myDeposit.invalidate();
     },
     onError: (e) => toast.error(e.message),
@@ -173,8 +178,8 @@ function DepositForm() {
         <CardContent className="pt-4 flex items-center gap-3">
           <CheckCircle className="w-6 h-6 text-green-600" />
           <div>
-            <p className="font-medium text-green-800 dark:text-green-200">保证金已确认</p>
-            <p className="text-sm text-green-600">金额：{deposit.data.amountUsdd} USDD</p>
+            <p className="font-medium text-green-800 dark:text-green-200">{t("seller.deposit_confirmed")}</p>
+            <p className="text-sm text-green-600">{deposit.data.amountUsdd} USDD</p>
           </div>
         </CardContent>
       </Card>
@@ -187,8 +192,8 @@ function DepositForm() {
         <CardContent className="pt-4 flex items-center gap-3">
           <Clock className="w-6 h-6 text-yellow-600" />
           <div>
-            <p className="font-medium text-yellow-800 dark:text-yellow-200">保证金待确认</p>
-            <p className="text-sm text-yellow-600">已提交 {deposit.data.amountUsdd} USDD，等待管理员确认</p>
+            <p className="font-medium text-yellow-800 dark:text-yellow-200">{t("seller.deposit_pending")}</p>
+            <p className="text-sm text-yellow-600">{deposit.data.amountUsdd} USDD</p>
           </div>
         </CardContent>
       </Card>
@@ -198,21 +203,20 @@ function DepositForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>缴纳店铺保证金</CardTitle>
+        <CardTitle>{t("seller.pay_deposit")}</CardTitle>
         <CardDescription>
-          缴纳 {config.data?.depositAmount ?? 50} USDD 保证金后，管理员审核通过即可开始营业
+          {config.data?.depositAmount ?? 50} USDD
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="p-4 bg-muted rounded-lg space-y-2 text-sm">
-          <p className="font-medium">USDD TRC-20 收款地址：</p>
+          <p className="font-medium">{t("seller.deposit_address")}</p>
           <p className="font-mono text-xs break-all">TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE</p>
-          <p className="text-muted-foreground">请转账 {config.data?.depositAmount ?? 50} USDD 到以上地址</p>
         </div>
         <div>
-          <Label>交易哈希 (TxHash)</Label>
+          <Label>{t("seller.txhash")}</Label>
           <Input
-            placeholder="粘贴您的转账交易哈希..."
+            placeholder="TxHash..."
             value={txHash}
             onChange={(e) => setTxHash(e.target.value)}
           />
@@ -222,7 +226,7 @@ function DepositForm() {
           onClick={() => submitMutation.mutate({ paymentMethod: "usdd", paymentTxHash: txHash })}
           disabled={!txHash || submitMutation.isPending}
         >
-          {submitMutation.isPending ? "提交中..." : "提交保证金记录"}
+          {submitMutation.isPending ? t("common.loading") : t("seller.pay_deposit")}
         </Button>
       </CardContent>
     </Card>
@@ -231,13 +235,14 @@ function DepositForm() {
 
 // ─── Product List ─────────────────────────────────────────────────────────────
 function ProductList({ storeId }: { storeId: number }) {
+  const { t } = useLanguage();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const utils = trpc.useUtils();
   const products = trpc.store.myProducts.useQuery({ page, limit: 12, search: search || undefined });
   const deleteMutation = trpc.store.deleteProduct.useMutation({
     onSuccess: () => {
-      toast.success("商品已删除");
+      toast.success(t("common.success"));
       utils.store.myProducts.invalidate();
     },
     onError: (e) => toast.error(e.message),
@@ -246,7 +251,7 @@ function ProductList({ storeId }: { storeId: number }) {
   return (
     <div className="space-y-4">
       <Input
-        placeholder="搜索商品..."
+        placeholder={t("common.search") + "..."}
         value={search}
         onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         className="max-w-sm"
@@ -260,7 +265,7 @@ function ProductList({ storeId }: { storeId: number }) {
       ) : products.data?.products.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p>还没有商品，点击上方按钮添加</p>
+          <p>{t("seller.no_products")}</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -285,7 +290,7 @@ function ProductList({ storeId }: { storeId: number }) {
                 )}
                 {product.isActive === 0 && (
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <span className="text-white text-sm font-medium">已下架</span>
+                    <span className="text-white text-sm font-medium">{t("common.na")}</span>
                   </div>
                 )}
               </div>
@@ -293,7 +298,7 @@ function ProductList({ storeId }: { storeId: number }) {
                 <p className="text-sm font-medium line-clamp-2 leading-tight">{product.name}</p>
                 <div className="flex items-center justify-between">
                   <span className="text-primary font-bold">{parseFloat(product.priceUsdd).toFixed(2)} USDD</span>
-                  <span className="text-xs text-muted-foreground">库存 {product.stock}</span>
+                  <span className="text-xs text-muted-foreground">{product.stock}</span>
                 </div>
                 <div className="flex gap-1 pt-1">
                   {product.externalUrl && (
@@ -308,7 +313,7 @@ function ProductList({ storeId }: { storeId: number }) {
                     size="sm"
                     className="h-7 px-2 text-xs text-destructive hover:text-destructive ml-auto"
                     onClick={() => {
-                      if (confirm("确认删除此商品？")) {
+                      if (confirm(t("common.confirm") + "?")) {
                         deleteMutation.mutate({ id: product.id });
                       }
                     }}
@@ -323,9 +328,9 @@ function ProductList({ storeId }: { storeId: number }) {
       )}
       {(products.data?.total ?? 0) > 12 && (
         <div className="flex justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>上一页</Button>
-          <span className="text-sm text-muted-foreground self-center">第 {page} 页</span>
-          <Button variant="outline" size="sm" disabled={page * 12 >= (products.data?.total ?? 0)} onClick={() => setPage(p => p + 1)}>下一页</Button>
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t("seller.prev_page")}</Button>
+          <span className="text-sm text-muted-foreground self-center">{page}</span>
+          <Button variant="outline" size="sm" disabled={page * 12 >= (products.data?.total ?? 0)} onClick={() => setPage(p => p + 1)}>{t("seller.next_page")}</Button>
         </div>
       )}
     </div>
@@ -334,6 +339,7 @@ function ProductList({ storeId }: { storeId: number }) {
 
 // ─── Add Product Dialog ───────────────────────────────────────────────────────
 function AddProductDialog({ onSuccess }: { onSuccess: () => void }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"manual" | "import">("manual");
   const [form, setForm] = useState({ name: "", description: "", priceUsdd: "", stock: "0", images: "" });
@@ -342,7 +348,7 @@ function AddProductDialog({ onSuccess }: { onSuccess: () => void }) {
 
   const addMutation = trpc.store.addProduct.useMutation({
     onSuccess: () => {
-      toast.success("商品已添加");
+      toast.success(t("common.success"));
       utils.store.myProducts.invalidate();
       setOpen(false);
       setForm({ name: "", description: "", priceUsdd: "", stock: "0", images: "" });
@@ -353,7 +359,7 @@ function AddProductDialog({ onSuccess }: { onSuccess: () => void }) {
 
   const importMutation = trpc.store.importFromLink.useMutation({
     onSuccess: (data) => {
-      toast.success(`已从 ${data.extracted.name} 导入商品`);
+      toast.success(t("common.success"));
       utils.store.myProducts.invalidate();
       setOpen(false);
       setImportUrl("");
@@ -367,50 +373,50 @@ function AddProductDialog({ onSuccess }: { onSuccess: () => void }) {
       <DialogTrigger asChild>
         <Button className="gap-2">
           <Plus className="w-4 h-4" />
-          添加商品
+          {t("seller.add_product")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>添加商品</DialogTitle>
+          <DialogTitle>{t("seller.add_product")}</DialogTitle>
         </DialogHeader>
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
           <TabsList className="grid grid-cols-2 w-full">
             <TabsTrigger value="manual" className="gap-2">
               <Plus className="w-4 h-4" />
-              手动添加
+              {t("seller.manual_add")}
             </TabsTrigger>
             <TabsTrigger value="import" className="gap-2">
               <Link2 className="w-4 h-4" />
-              导入链接
+              {t("seller.import_link")}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="manual" className="space-y-4 pt-2">
             <div>
-              <Label>商品名称 *</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="商品名称" />
+              <Label>{t("seller.product_name")}</Label>
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <Label>商品描述</Label>
-              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="商品详情..." rows={3} />
+              <Label>{t("seller.product_desc")}</Label>
+              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>价格 (USDD) *</Label>
+                <Label>{t("seller.price_usdd")}</Label>
                 <Input type="number" value={form.priceUsdd} onChange={(e) => setForm({ ...form, priceUsdd: e.target.value })} placeholder="9.99" min="0" step="0.01" />
               </div>
               <div>
-                <Label>库存数量</Label>
+                <Label>{t("seller.stock")}</Label>
                 <Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} placeholder="0" min="0" />
               </div>
             </div>
             <div>
-              <Label>商品图片 URL（每行一个）</Label>
+              <Label>{t("seller.image_urls")}</Label>
               <Textarea
                 value={form.images}
                 onChange={(e) => setForm({ ...form, images: e.target.value })}
-                placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
+                placeholder="https://example.com/image1.jpg"
                 rows={2}
               />
             </div>
@@ -425,7 +431,7 @@ function AddProductDialog({ onSuccess }: { onSuccess: () => void }) {
               })}
               disabled={!form.name || !form.priceUsdd || addMutation.isPending}
             >
-              {addMutation.isPending ? "添加中..." : "添加商品"}
+              {addMutation.isPending ? t("common.loading") : t("seller.add_product")}
             </Button>
           </TabsContent>
 
@@ -436,20 +442,20 @@ function AddProductDialog({ onSuccess }: { onSuccess: () => void }) {
               ))}
             </div>
             <div>
-              <Label>商品链接 *</Label>
+              <Label>{t("seller.product_link")}</Label>
               <Input
                 value={importUrl}
                 onChange={(e) => setImportUrl(e.target.value)}
-                placeholder="粘贴商品链接，如 https://www.tiktok.com/..."
+                placeholder={t("seller.import_placeholder")}
               />
               <p className="text-xs text-muted-foreground mt-1">
-                支持 TikTok、拼多多、小红书、Amazon、SHEIN、淘宝、京东、Lazada、Shopee 等平台
+                {t("seller.import_platforms")}
               </p>
             </div>
             {importMutation.isPending && (
               <div className="text-center py-4 text-sm text-muted-foreground">
                 <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                AI 正在解析商品信息...
+                {t("seller.ai_parsing")}
               </div>
             )}
             <Button
@@ -457,10 +463,10 @@ function AddProductDialog({ onSuccess }: { onSuccess: () => void }) {
               onClick={() => importMutation.mutate({ url: importUrl })}
               disabled={!importUrl || importMutation.isPending}
             >
-              {importMutation.isPending ? "解析中..." : "AI 解析并导入"}
+              {importMutation.isPending ? t("seller.ai_parsing") : t("seller.import_link")}
             </Button>
             <p className="text-xs text-muted-foreground text-center">
-              AI 将自动提取商品名称、描述、价格等信息，您可在导入后编辑
+              {t("seller.ai_note")}
             </p>
           </TabsContent>
         </Tabs>
@@ -471,11 +477,16 @@ function AddProductDialog({ onSuccess }: { onSuccess: () => void }) {
 
 // ─── Main Seller Dashboard ────────────────────────────────────────────────────
 export default function SellerDashboard() {
+  const { t } = useLanguage();
   const { user, loading: authLoading } = useAuth();
   const [applied, setApplied] = useState(false);
   const store = trpc.store.myStore.useQuery(undefined, { enabled: !!user });
   const stats = trpc.store.myStoreStats.useQuery(undefined, { enabled: !!user && store.data?.status === "active" });
   const deposit = trpc.store.myDeposit.useQuery(undefined, { enabled: !!user && !!store.data });
+  const { data: notifCount, refetch: refetchCount } = trpc.notifications.unreadCount.useQuery(undefined, { enabled: !!user, refetchInterval: 30000 });
+  const { data: notifications, refetch: refetchNotifs } = trpc.notifications.list.useQuery(undefined, { enabled: !!user });
+  const markReadMutation = trpc.notifications.markRead.useMutation({ onSuccess: () => { refetchCount(); refetchNotifs(); } });
+  const [notifOpen, setNotifOpen] = useState(false);
 
   if (authLoading || store.isLoading) {
     return (
@@ -489,9 +500,9 @@ export default function SellerDashboard() {
     return (
       <div className="container py-16 text-center space-y-4">
         <Store className="w-12 h-12 mx-auto text-muted-foreground" />
-        <h2 className="text-xl font-semibold">请先登录</h2>
-        <p className="text-muted-foreground">登录后即可开设您的店铺</p>
-        <Button asChild><Link href="/">返回首页</Link></Button>
+        <h2 className="text-xl font-semibold">{t("seller.login_required")}</h2>
+        <p className="text-muted-foreground">{t("seller.login_desc")}</p>
+        <Button asChild><Link href="/">{t("seller.back_home")}</Link></Button>
       </div>
     );
   }
@@ -527,11 +538,48 @@ export default function SellerDashboard() {
             <p className="text-sm text-muted-foreground">/store/{storeData.slug}</p>
           </div>
         </div>
-        {storeData.status === "active" && (
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/store/${storeData.slug}`}>查看店铺主页</Link>
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Notification Bell */}
+          <Popover open={notifOpen} onOpenChange={(open) => {
+            setNotifOpen(open);
+            if (open && notifCount && notifCount.count > 0) {
+              markReadMutation.mutate({});
+            }
+          }}>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="w-5 h-5" />
+                {notifCount && notifCount.count > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                    {notifCount.count > 9 ? "9+" : notifCount.count}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0" align="end">
+              <div className="p-3 border-b font-semibold text-sm">{t("seller.notifications")}</div>
+              <div className="max-h-80 overflow-y-auto">
+                {!notifications || notifications.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-muted-foreground">{t("seller.no_notifications")}</div>
+                ) : (
+                  notifications.map((n: any) => (
+                    <div key={n.id} className={`p-3 border-b last:border-0 text-sm hover:bg-muted/50 cursor-pointer ${n.isRead ? "opacity-60" : ""}`}
+                      onClick={() => { if (n.link) window.location.href = n.link; }}>
+                      <div className="font-medium">{n.title}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{n.body}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{new Date(n.createdAt).toLocaleString()}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+          {storeData.status === "active" && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/store/${storeData.slug}`}>{t("seller.view_store")}</Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Pending notices */}
@@ -540,10 +588,10 @@ export default function SellerDashboard() {
           <CardContent className="pt-4 space-y-3">
             <div className="flex items-center gap-2 font-medium text-yellow-800 dark:text-yellow-200">
               <Clock className="w-4 h-4" />
-              店铺审核中
+              {t("seller.under_review")}
             </div>
             <p className="text-sm text-yellow-700 dark:text-yellow-300">
-              您的开店申请正在审核中。请先缴纳保证金，管理员确认后将尽快审核您的申请。
+              {t("seller.review_desc")}
             </p>
             {user.role !== "admin" && <DepositForm />}
           </CardContent>
@@ -555,10 +603,10 @@ export default function SellerDashboard() {
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-200">
               <AlertCircle className="w-4 h-4" />
-              申请已被拒绝
+              {t("seller.rejected")}
             </div>
             {storeData.adminNote && (
-              <p className="text-sm text-red-600 mt-1">原因：{storeData.adminNote}</p>
+              <p className="text-sm text-red-600 mt-1">{storeData.adminNote}</p>
             )}
           </CardContent>
         </Card>
@@ -569,10 +617,10 @@ export default function SellerDashboard() {
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-200">
               <AlertCircle className="w-4 h-4" />
-              店铺已被暂停
+              {t("seller.suspended")}
             </div>
             {storeData.adminNote && (
-              <p className="text-sm text-red-600 mt-1">原因：{storeData.adminNote}</p>
+              <p className="text-sm text-red-600 mt-1">{storeData.adminNote}</p>
             )}
           </CardContent>
         </Card>
@@ -584,7 +632,7 @@ export default function SellerDashboard() {
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-                <Package className="w-4 h-4" /> 在售商品
+                <Package className="w-4 h-4" /> {t("seller.products_on_sale")}
               </div>
               <p className="text-2xl font-bold">{stats.data.productCount}</p>
             </CardContent>
@@ -592,7 +640,7 @@ export default function SellerDashboard() {
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-                <TrendingUp className="w-4 h-4" /> 总订单
+                <TrendingUp className="w-4 h-4" /> {t("seller.total_orders")}
               </div>
               <p className="text-2xl font-bold">{stats.data.orderCount}</p>
             </CardContent>
@@ -600,17 +648,17 @@ export default function SellerDashboard() {
           <Card className="border-green-500/30 bg-green-500/5">
             <CardContent className="pt-4">
               <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-                <DollarSign className="w-4 h-4" /> 总收益
+                <DollarSign className="w-4 h-4" /> {t("seller.total_earnings")}
               </div>
               <p className="text-2xl font-bold text-green-600">{stats.data.totalEarnings.toFixed(2)}</p>
               <p className="text-xs text-muted-foreground">USDD</p>
-              <Link href="/seller/withdrawal" className="text-xs text-primary hover:underline mt-1 block">💸 申请提现 →</Link>
+              <Link href="/seller/withdrawal" className="text-xs text-primary hover:underline mt-1 block">{t("seller.withdraw_btn")}</Link>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-                <DollarSign className="w-4 h-4" /> 平台手续费
+                <DollarSign className="w-4 h-4" /> {t("seller.platform_fee_label")}
               </div>
               <p className="text-2xl font-bold">{stats.data.totalCommission.toFixed(2)}</p>
               <p className="text-xs text-muted-foreground">USDD</p>
@@ -624,9 +672,9 @@ export default function SellerDashboard() {
         <Tabs defaultValue="products">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <TabsList>
-              <TabsTrigger value="products">商品管理</TabsTrigger>
-              <TabsTrigger value="settings">店铺设置</TabsTrigger>
-              <TabsTrigger value="deposit">保证金</TabsTrigger>
+              <TabsTrigger value="products">{t("seller.products_tab")}</TabsTrigger>
+              <TabsTrigger value="settings">{t("seller.settings_tab")}</TabsTrigger>
+              <TabsTrigger value="deposit">{t("seller.deposit_tab")}</TabsTrigger>
             </TabsList>
             <AddProductDialog onSuccess={() => {}} />
           </div>
@@ -650,6 +698,7 @@ export default function SellerDashboard() {
 
 // ─── Store Settings Form ──────────────────────────────────────────────────────
 function StoreSettingsForm({ store }: { store: any }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState({
     name: store.name ?? "",
     description: store.description ?? "",
@@ -662,7 +711,7 @@ function StoreSettingsForm({ store }: { store: any }) {
   const utils = trpc.useUtils();
   const updateMutation = trpc.store.updateStore.useMutation({
     onSuccess: () => {
-      toast.success("店铺信息已更新");
+      toast.success(t("common.saved"));
       utils.store.myStore.invalidate();
     },
     onError: (e) => toast.error(e.message),
@@ -671,44 +720,44 @@ function StoreSettingsForm({ store }: { store: any }) {
   return (
     <Card className="max-w-lg">
       <CardHeader>
-        <CardTitle>店铺基本信息</CardTitle>
+        <CardTitle>{t("seller.store_info")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <Label>店铺名称</Label>
+          <Label>{t("seller.store_name_label")}</Label>
           <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </div>
         <div>
-          <Label>店铺简介</Label>
+          <Label>{t("seller.store_desc")}</Label>
           <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
         </div>
         <div>
-          <Label>店铺 Logo URL</Label>
+          <Label>{t("seller.store_logo")}</Label>
           <Input value={form.logoUrl} onChange={(e) => setForm({ ...form, logoUrl: e.target.value })} placeholder="https://..." />
         </div>
         <div>
-          <Label>店铺横幅 URL</Label>
+          <Label>{t("seller.store_banner")}</Label>
           <Input value={form.bannerUrl} onChange={(e) => setForm({ ...form, bannerUrl: e.target.value })} placeholder="https://..." />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label>联系邮箱</Label>
+            <Label>{t("seller.contact_email")}</Label>
             <Input type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} />
           </div>
           <div>
-            <Label>联系电话</Label>
+            <Label>{t("seller.contact_phone")}</Label>
             <Input value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} />
           </div>
         </div>
         <div>
-          <Label>所在国家/地区</Label>
+          <Label>{t("seller.country")}</Label>
           <Input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
         </div>
         <Button
           onClick={() => updateMutation.mutate(form)}
           disabled={updateMutation.isPending}
         >
-          {updateMutation.isPending ? "保存中..." : "保存更改"}
+          {updateMutation.isPending ? t("common.saving") : t("common.save")}
         </Button>
       </CardContent>
     </Card>
