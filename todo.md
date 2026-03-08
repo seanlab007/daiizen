@@ -82,3 +82,48 @@
 - [x] Admin: deposit management (view, refund)
 - [x] Admin: seller management (suspend, reinstate)
 - [x] Vitest tests for store/seller procedures
+
+## Round 4: S2B2C Platform - Influencer + Supply Chain
+
+### Store Type System
+- [x] Add storeType field to stores: "influencer" | "supply_chain" | "brand"
+- [x] Influencer onboarding flow (separate from supply chain)
+- [x] Supply chain onboarding flow (wholesale/dropship catalog)
+
+### Influencer Features
+- [x] Influencer dashboard: select supply chain products to sell (dropship)
+- [x] Influencer can set own markup price on top of supply chain base price
+- [x] Influencer referral link generator (unique per influencer)
+- [x] AI product selection tool (trending analysis via LLM)
+- [x] AI customer service auto-reply for influencer store
+- [x] Influencer earnings: base commission + markup profit
+
+### Supply Chain Features
+- [x] Supply chain product catalog (wholesale products with base price)
+- [x] Dropship fulfillment: when influencer sells, order goes to supply chain for direct shipping
+- [x] Supply chain order management (pending fulfillment, shipped, tracking)
+- [x] Supply chain earnings dashboard
+
+### Social Referral System (3-Level, Compliance-Safe ≤3 tiers)
+- [x] Referral code generation (one per user)
+- [x] Referral tree: track up to 3 levels (L1/L2/L3 ancestors stored per user)
+- [x] Reward trigger: when referred user completes FIRST purchase
+- [x] Reward rates: L1=5%, L2=2%, L3=1% of first order value (platform credit)
+- [x] Reward type: platform credit redeemable for goods or cash-out
+- [x] Hard cap: max 3 levels, no downstream beyond L3
+- [x] Referral dashboard: tree visualization, pending/confirmed rewards per level
+- [x] Admin: referral reward approval and payout management
+
+### Marketplace Updates
+- [x] Marketplace shows store type badges (网红店 / 供应链)
+- [x] Homepage section: "网红带货" featured influencer stores
+- [x] Homepage section: "品质供应链" supply chain showcase
+
+### Compliance & Operations
+- [x] Terms of service page mentioning single-layer referral rules
+- [x] Admin: referral reward approval/fulfillment management
+- [x] Admin: supply chain partner management
+
+### Tests
+- [x] Vitest tests for referral system (3-level enforcement)
+- [x] Vitest tests for dropship order flow

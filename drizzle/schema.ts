@@ -327,3 +327,148 @@ export const storeOrders = mysqlTable("storeOrders", {
 
 export type StoreOrder = typeof storeOrders.$inferSelect;
 export type InsertStoreOrder = typeof storeOrders.$inferInsert;
+
+// ─── S2B2C: Store Type Extension ──────────────────────────────────────────────
+// storeType added as a separate table to avoid altering existing stores table
+// "influencer" = KOL/网红店, "supply_chain" = 供应链/批发商, "brand" = 品牌自营
+export const storeProfiles = mysqlTable("storeProfiles", {
+  id: int("id").autoincrement().primaryKey(),
+  storeId: int("storeId").notNull().unique(),
+  storeType: mysqlEnum("storeType", ["influencer", "supply_chain", "brand"])
+    .default("influencer")
+    .notNull(),
+  // For influencers: social platform links
+  tiktokHandle: varchar("tiktokHandle", { length: 128 }),
+  instagramHandle: varchar("instagramHandle", { length: 128 }),
+  youtubeHandle: varchar("youtubeHandle", { length: 128 }),
+  xiaohongshuHandle: varchar("xiaohongshuHandle", { length: 128 }),
+  followerCount: int("followerCount").default(0),
+  // For supply chain: wholesale info
+  minOrderQuantity: int("minOrderQuantity").default(1),
+  warehouseCountry: varchar("warehouseCountry", { length: 64 }),
+  shippingDays: int("shippingDays").default(7),
+  isDropshipEnabled: int("isDropshipEnabled").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type StoreProfile = typeof storeProfiles.$inferSelect;
+
+// ─── Referral System (3-Level Max) ───────────────────────────────────────────
+// Each user has one referral code; referral tree tracks up to 3 ancestors
+export const referralCodes = mysqlTable("referralCodes", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  code: varchar("code", { length: 16 }).notNull().unique(),
+  totalReferrals: int("totalReferrals").default(0).notNull(),
+  totalRewardsUsdd: decimal("totalRewardsUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ReferralCode = typeof referralCodes.$inferSelect;
+
+// Tracks who referred whom, and the referral chain (up to 3 levels)
+export const referralRelations = mysqlTable("referralRelations", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(), // the new user
+  referredByUserId: int("referredByUserId").notNull(), // direct referrer (L1)
+  l2UserId: int("l2UserId"), // L1's referrer (L2 for original user)
+  l3UserId: int("l3UserId"), // L2's referrer (L3 for original user)
+  referralCode: varchar("referralCode", { length: 16 }).notNull(),
+  firstPurchaseDone: int("firstPurchaseDone").default(0).notNull(),
+  firstPurchaseAt: timestamp("firstPurchaseAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ReferralRelation = typeof referralRelations.$inferSelect;
+
+// Reward records for each referral level
+export const referralRewards = mysqlTable("referralRewards", {
+  id: int("id").autoincrement().primaryKey(),
+  beneficiaryUserId: int("beneficiaryUserId").notNull(), // who earns the reward
+  referredUserId: int("referredUserId").notNull(), // whose purchase triggered it
+  orderId: int("orderId").notNull(),
+  level: int("level").notNull(), // 1, 2, or 3
+  orderAmountUsdd: decimal("orderAmountUsdd", { precision: 18, scale: 6 }).notNull(),
+  rewardRate: decimal("rewardRate", { precision: 5, scale: 4 }).notNull(), // 0.05, 0.02, 0.01
+  rewardAmountUsdd: decimal("rewardAmountUsdd", { precision: 18, scale: 6 }).notNull(),
+  status: mysqlEnum("status", ["pending", "confirmed", "paid", "cancelled"])
+    .default("pending")
+    .notNull(),
+  paidAt: timestamp("paidAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ReferralReward = typeof referralRewards.$inferSelect;
+
+// User credit wallet (earned from referrals, redeemable for goods/cashout)
+export const userCredits = mysqlTable("userCredits", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  balanceUsdd: decimal("balanceUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
+  totalEarnedUsdd: decimal("totalEarnedUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
+  totalSpentUsdd: decimal("totalSpentUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type UserCredit = typeof userCredits.$inferSelect;
+
+// ─── Supply Chain Catalog ─────────────────────────────────────────────────────
+// Products listed by supply chain stores available for influencers to dropship
+export const supplyChainProducts = mysqlTable("supplyChainProducts", {
+  id: int("id").autoincrement().primaryKey(),
+  storeId: int("storeId").notNull(), // must be a supply_chain store
+  name: varchar("name", { length: 256 }).notNull(),
+  description: text("description"),
+  categoryId: int("categoryId"),
+  basePriceUsdd: decimal("basePriceUsdd", { precision: 18, scale: 6 }).notNull(), // wholesale price
+  suggestedRetailPriceUsdd: decimal("suggestedRetailPriceUsdd", { precision: 18, scale: 6 }), // MSRP
+  images: json("images").$type<string[]>(),
+  stock: int("stock").default(0).notNull(),
+  minOrderQty: int("minOrderQty").default(1).notNull(),
+  weight: decimal("weight", { precision: 10, scale: 3 }),
+  tags: json("tags").$type<string[]>(),
+  isDropshipAvailable: int("isDropshipAvailable").default(1).notNull(),
+  isActive: int("isActive").default(1).notNull(),
+  salesCount: int("salesCount").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type SupplyChainProduct = typeof supplyChainProducts.$inferSelect;
+
+// Links influencer store products to supply chain source products (dropship)
+export const dropshipLinks = mysqlTable("dropshipLinks", {
+  id: int("id").autoincrement().primaryKey(),
+  influencerStoreId: int("influencerStoreId").notNull(),
+  influencerProductId: int("influencerProductId").notNull(), // storeProducts.id
+  supplyChainProductId: int("supplyChainProductId").notNull(),
+  supplyChainStoreId: int("supplyChainStoreId").notNull(),
+  markupPriceUsdd: decimal("markupPriceUsdd", { precision: 18, scale: 6 }).notNull(), // influencer's selling price
+  basePriceUsdd: decimal("basePriceUsdd", { precision: 18, scale: 6 }).notNull(), // supply chain cost
+  influencerMarginUsdd: decimal("influencerMarginUsdd", { precision: 18, scale: 6 }).notNull(), // markup - base
+  isActive: int("isActive").default(1).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type DropshipLink = typeof dropshipLinks.$inferSelect;
+
+// Dropship fulfillment orders (sent to supply chain when influencer makes a sale)
+export const dropshipOrders = mysqlTable("dropshipOrders", {
+  id: int("id").autoincrement().primaryKey(),
+  storeOrderId: int("storeOrderId").notNull(), // original storeOrders.id
+  influencerStoreId: int("influencerStoreId").notNull(),
+  supplyChainStoreId: int("supplyChainStoreId").notNull(),
+  supplyChainProductId: int("supplyChainProductId").notNull(),
+  quantity: int("quantity").notNull(),
+  basePriceUsdd: decimal("basePriceUsdd", { precision: 18, scale: 6 }).notNull(),
+  totalCostUsdd: decimal("totalCostUsdd", { precision: 18, scale: 6 }).notNull(),
+  // Shipping address (copied from buyer's order)
+  shippingName: varchar("shippingName", { length: 128 }),
+  shippingPhone: varchar("shippingPhone", { length: 32 }),
+  shippingAddress: text("shippingAddress"),
+  shippingCountry: varchar("shippingCountry", { length: 64 }),
+  status: mysqlEnum("status", ["pending", "accepted", "shipped", "delivered", "cancelled"])
+    .default("pending")
+    .notNull(),
+  trackingNumber: varchar("trackingNumber", { length: 128 }),
+  supplyChainNote: text("supplyChainNote"),
+  shippedAt: timestamp("shippedAt"),
+  deliveredAt: timestamp("deliveredAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type DropshipOrder = typeof dropshipOrders.$inferSelect;

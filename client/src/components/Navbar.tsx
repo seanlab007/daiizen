@@ -60,8 +60,33 @@ export default function Navbar() {
             <Link href="/marketplace" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               全球商城
             </Link>
-            <Link href="/seller" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              开店
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                  开店入驻 <ChevronDown className="w-3 h-3" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-52">
+                <DropdownMenuItem asChild>
+                  <Link href="/influencer-onboarding" className="gap-2">
+                    <span>🌟</span> 网红 / KOL 入驻
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/supply-chain-onboarding" className="gap-2">
+                    <span>🏭</span> 供应链 / 品牌入驻
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/seller" className="gap-2">
+                    <span>📊</span> 卖家后台
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Link href="/referral" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              推荐奖励
             </Link>
           </nav>
 
@@ -138,6 +163,9 @@ export default function Navbar() {
                   <DropdownMenuItem asChild>
                     <Link href="/seller">我的店铺</Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/referral">推荐奖励</Link>
+                  </DropdownMenuItem>
                   {user?.role === "admin" && (
                     <>
                       <DropdownMenuSeparator />
@@ -198,8 +226,17 @@ export default function Navbar() {
               <Link href="/marketplace" onClick={() => setMobileOpen(false)} className="px-2 py-1.5 text-sm hover:bg-accent rounded-md">
                 全球商城
               </Link>
+              <Link href="/influencer-onboarding" onClick={() => setMobileOpen(false)} className="px-2 py-1.5 text-sm hover:bg-accent rounded-md">
+                🌟 网红入驻
+              </Link>
+              <Link href="/supply-chain-onboarding" onClick={() => setMobileOpen(false)} className="px-2 py-1.5 text-sm hover:bg-accent rounded-md">
+                🏭 供应链入驻
+              </Link>
               <Link href="/seller" onClick={() => setMobileOpen(false)} className="px-2 py-1.5 text-sm hover:bg-accent rounded-md">
-                开店
+                📊 卖家后台
+              </Link>
+              <Link href="/referral" onClick={() => setMobileOpen(false)} className="px-2 py-1.5 text-sm hover:bg-accent rounded-md">
+                💰 推荐奖励
               </Link>
             </nav>
           </div>

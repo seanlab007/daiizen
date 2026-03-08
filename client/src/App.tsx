@@ -25,6 +25,9 @@ const Marketplace = lazy(() => import("./pages/Marketplace"));
 const SellerDashboard = lazy(() => import("./pages/SellerDashboard"));
 const StorePage = lazy(() => import("./pages/StorePage"));
 const StoreProductDetail = lazy(() => import("./pages/StoreProductDetail"));
+const InfluencerOnboarding = lazy(() => import("./pages/InfluencerOnboarding"));
+const SupplyChainOnboarding = lazy(() => import("./pages/SupplyChainOnboarding"));
+const ReferralPage = lazy(() => import("./pages/ReferralPage"));
 
 function PageLoader() {
   return (
@@ -53,6 +56,9 @@ function Router() {
         <Route path="/seller" component={SellerDashboard} />
         <Route path="/store/:slug" component={StorePage} />
         <Route path="/store/:slug/product/:productSlug" component={StoreProductDetail} />
+        <Route path="/influencer-onboarding" component={InfluencerOnboarding} />
+        <Route path="/supply-chain-onboarding" component={SupplyChainOnboarding} />
+        <Route path="/referral" component={ReferralPage} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>
