@@ -114,6 +114,9 @@ export default function Navbar() {
             <Link href="/referral" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               {t("nav.referral")}
             </Link>
+            <Link href="/emergency" className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors flex items-center gap-1">
+              🚨 Emergency
+            </Link>
           </nav>
 
           {/* Desktop Search */}

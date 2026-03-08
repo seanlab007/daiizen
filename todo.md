@@ -329,3 +329,24 @@
 - [x] Backend: trigger notifyOwner when stock falls below threshold (24h debounce)
 - [x] Admin: low-stock threshold management UI (inline edit per product row)
 - [x] Frontend: show low-stock warning badge (red AlertCircle) in admin product list
+
+## Round 15: Cart Discounts + Emergency Page + Bulk Stock Update
+
+### Cart Bulk Discount Display
+- [x] Cart page: show bulk discount badge and discounted price per line item
+- [x] Cart page: show total savings from bulk discounts
+- [x] Cart page: show original price crossed out when discount applies
+
+### Emergency Supplies Dedicated Page (/emergency)
+- [x] Create /emergency route in App.tsx
+- [x] Emergency page: hero banner with crisis zone context
+- [x] Emergency page: NGO/bulk buyer contact section (email + WhatsApp)
+- [x] Emergency page: full product grid filtered to emergency-supplies category
+- [x] Emergency page: bulk discount tiers prominently displayed
+- [x] Emergency page: key commitments section (priority shipping, discreet packaging, verified suppliers)
+- [x] Add "Emergency Supplies" link to navbar (red, prominent)
+
+### Admin Bulk Stock Update
+- [x] Admin products tab: inline stock edit (click stock number to edit in-place)
+- [x] Admin products tab: Save/Cancel buttons appear on click
+- [x] Backend: reuses existing updateProduct procedure

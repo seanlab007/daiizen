@@ -67,10 +67,12 @@ export default function Admin() {
 
   const [thresholdForm, setThresholdForm] = useState<{ productId: number; threshold: number } | null>(null);
   const [bulkDiscountForm, setBulkDiscountForm] = useState<{ id?: number; categoryId: string; minQty: string; discountPct: string; label: string } | null>(null);
+  const [stockEditForm, setStockEditForm] = useState<{ productId: number; stock: number } | null>(null);
 
   const createProductMutation = trpc.admin.createProduct.useMutation({ onSuccess: () => { refetchProducts(); setShowNewProduct(false); toast.success("Product created"); } });
   const deleteProductMutation = trpc.admin.deleteProduct.useMutation({ onSuccess: () => { refetchProducts(); toast.success("Product deleted"); } });
   const generateImageMutation = trpc.admin.generateProductImage.useMutation({ onSuccess: () => { refetchProducts(); toast.success("Image generated!"); } });
+  const updateStockMutation = trpc.admin.updateProduct.useMutation({ onSuccess: () => { refetchProducts(); setStockEditForm(null); toast.success("Stock updated"); } });
   const updateOrderStatusMutation = trpc.admin.updateOrderStatus.useMutation({ onSuccess: () => refetchOrders() });
   const refreshRatesMutation = trpc.exchangeRates.refresh.useMutation({ onSuccess: () => toast.success("Rates refreshed!") });
   const setThresholdMutation = trpc.admin.setLowStockThreshold.useMutation({ onSuccess: () => { refetchThresholds(); setThresholdForm(null); toast.success("Threshold saved"); } });
@@ -208,10 +210,28 @@ export default function Admin() {
                       </td>
                       <td className="p-3 text-primary font-medium">{Number(product.priceUsdd).toFixed(2)}</td>
                       <td className="p-3">
-                        <span className={`text-xs font-medium ${isLow ? "text-red-600 font-bold" : "text-muted-foreground"}`}>
-                          {isLow && <AlertCircle className="w-3 h-3 inline mr-1" />}
-                          {product.stock}
-                        </span>
+                        {stockEditForm?.productId === product.id ? (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              value={stockEditForm.stock}
+                              onChange={e => setStockEditForm({ ...stockEditForm, stock: parseInt(e.target.value) || 0 })}
+                              className="h-6 w-16 text-xs"
+                              min={0}
+                            />
+                            <Button size="sm" className="h-6 text-xs px-2" onClick={() => updateStockMutation.mutate({ id: product.id, stock: stockEditForm.stock })} disabled={updateStockMutation.isPending}>Save</Button>
+                            <Button size="sm" variant="ghost" className="h-6 text-xs px-1" onClick={() => setStockEditForm(null)}>✕</Button>
+                          </div>
+                        ) : (
+                          <button
+                            className={`text-xs font-medium hover:underline underline-offset-2 ${isLow ? "text-red-600 font-bold" : "text-muted-foreground hover:text-foreground"}`}
+                            onClick={() => setStockEditForm({ productId: product.id, stock: product.stock })}
+                            title="Click to edit stock"
+                          >
+                            {isLow && <AlertCircle className="w-3 h-3 inline mr-1" />}
+                            {product.stock}
+                          </button>
+                        )}
                       </td>
                       <td className="p-3">
                         {thresholdForm?.productId === product.id ? (
