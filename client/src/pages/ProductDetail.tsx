@@ -41,6 +41,20 @@ export default function ProductDetail() {
   const { data: product, isLoading, error } = trpc.products.bySlug.useQuery({ slug: params.slug });
   const utils = trpc.useUtils();
 
+  // Bulk discounts for this product
+  const { data: bulkDiscounts = [] } = trpc.bulkDiscounts.forProduct.useQuery(
+    { productId: product?.id ?? 0, categoryId: product?.categoryId ?? null },
+    { enabled: !!product }
+  );
+
+  // Calculate discounted price based on current quantity
+  const applicableDiscount = bulkDiscounts
+    .filter(d => quantity >= d.minQty)
+    .sort((a, b) => parseFloat(b.discountPct) - parseFloat(a.discountPct))[0] ?? null;
+  const discountedPrice = applicableDiscount
+    ? Number(product?.priceUsdd ?? 0) * (1 - parseFloat(applicableDiscount.discountPct) / 100)
+    : null;
+
   const addToCartMutation = trpc.cart.add.useMutation({
     onSuccess: () => {
       toast.success("Added to cart!");
@@ -147,9 +161,42 @@ export default function ProductDetail() {
 
             {/* Price */}
             <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-bold text-primary">{Number(product.priceUsdd).toFixed(2)}</span>
+              {discountedPrice ? (
+                <>
+                  <span className="text-3xl font-bold text-red-600">{discountedPrice.toFixed(2)}</span>
+                  <span className="text-lg text-muted-foreground line-through">{Number(product.priceUsdd).toFixed(2)}</span>
+                  <span className="text-sm font-semibold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                    -{applicableDiscount!.discountPct}%
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-3xl font-bold text-primary">{Number(product.priceUsdd).toFixed(2)}</span>
+                </>
+              )}
               <span className="text-lg text-muted-foreground">USDD</span>
             </div>
+
+            {/* Bulk Discount Tiers */}
+            {bulkDiscounts.length > 0 && (
+              <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
+                <p className="text-xs font-semibold text-orange-800 mb-2">📦 Bulk Purchase Discounts</p>
+                <div className="flex flex-wrap gap-2">
+                  {bulkDiscounts.map((d) => (
+                    <div
+                      key={d.id}
+                      className={`text-xs px-2 py-1 rounded-full border font-medium transition-colors ${
+                        quantity >= d.minQty
+                          ? "bg-orange-600 text-white border-orange-600"
+                          : "bg-white text-orange-700 border-orange-300"
+                      }`}
+                    >
+                      {d.label || `Buy ${d.minQty}+: ${d.discountPct}% off`}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Stock */}
             <div className="flex items-center gap-2">

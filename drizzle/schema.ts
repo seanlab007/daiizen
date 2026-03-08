@@ -580,3 +580,30 @@ export const userNotifications = mysqlTable("userNotifications", {
 });
 export type UserNotification = typeof userNotifications.$inferSelect;
 export type InsertUserNotification = typeof userNotifications.$inferInsert;
+
+// ─── Bulk Purchase Discounts ──────────────────────────────────────────────────
+// Discount tiers: buy minQty or more of a product/category → get discountPct% off
+export const bulkDiscounts = mysqlTable("bulkDiscounts", {
+  id: int("id").autoincrement().primaryKey(),
+  productId: int("productId"),    // null = applies to whole category
+  categoryId: int("categoryId"),  // null = applies to specific product only
+  minQty: int("minQty").notNull(), // minimum quantity to trigger discount
+  discountPct: decimal("discountPct", { precision: 5, scale: 2 }).notNull(), // e.g. 10.00 = 10%
+  label: varchar("label", { length: 128 }), // e.g. "Buy 10+ get 10% off"
+  isActive: int("isActive").default(1).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type BulkDiscount = typeof bulkDiscounts.$inferSelect;
+export type InsertBulkDiscount = typeof bulkDiscounts.$inferInsert;
+
+// ─── Low Stock Thresholds ─────────────────────────────────────────────────────
+// Admin sets a threshold; when stock drops below it, owner gets notified
+export const lowStockThresholds = mysqlTable("lowStockThresholds", {
+  id: int("id").autoincrement().primaryKey(),
+  productId: int("productId").notNull().unique(),
+  threshold: int("threshold").notNull().default(10),
+  lastNotifiedAt: timestamp("lastNotifiedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type LowStockThreshold = typeof lowStockThresholds.$inferSelect;

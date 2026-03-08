@@ -1091,3 +1091,122 @@ export async function markNotificationsRead(userId: number, ids?: number[]) {
       .where(eq(userNotifications.userId, userId));
   }
 }
+
+// ─── Bulk Discounts ───────────────────────────────────────────────────────────
+
+export async function getBulkDiscountsForProduct(productId: number, categoryId: number | null | undefined) {
+  const db = await getDb();
+  if (!db) return [];
+  const { bulkDiscounts } = await import("../drizzle/schema");
+  // Get discounts that match this product specifically OR this category
+  const conditions = [eq(bulkDiscounts.isActive, 1)];
+  const results = await db.select().from(bulkDiscounts)
+    .where(and(...conditions))
+    .orderBy(bulkDiscounts.minQty);
+  // Filter: include if productId matches OR categoryId matches
+  return results.filter(d => {
+    if (d.productId !== null && d.productId === productId) return true;
+    if (d.categoryId !== null && categoryId !== null && d.categoryId === categoryId) return true;
+    return false;
+  });
+}
+
+export async function getBestBulkDiscount(productId: number, categoryId: number | null | undefined, qty: number) {
+  const tiers = await getBulkDiscountsForProduct(productId, categoryId);
+  // Find the highest applicable discount for the given quantity
+  const applicable = tiers.filter(t => qty >= t.minQty);
+  if (!applicable.length) return null;
+  return applicable.reduce((best, t) =>
+    parseFloat(t.discountPct) > parseFloat(best.discountPct) ? t : best
+  );
+}
+
+export async function getAllBulkDiscounts() {
+  const db = await getDb();
+  if (!db) return [];
+  const { bulkDiscounts } = await import("../drizzle/schema");
+  return db.select().from(bulkDiscounts).orderBy(bulkDiscounts.categoryId, bulkDiscounts.productId, bulkDiscounts.minQty);
+}
+
+export async function upsertBulkDiscount(data: {
+  id?: number;
+  productId?: number | null;
+  categoryId?: number | null;
+  minQty: number;
+  discountPct: string;
+  label?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const { bulkDiscounts } = await import("../drizzle/schema");
+  if (data.id) {
+    await db.update(bulkDiscounts).set({
+      minQty: data.minQty,
+      discountPct: data.discountPct,
+      label: data.label,
+    }).where(eq(bulkDiscounts.id, data.id));
+  } else {
+    await db.insert(bulkDiscounts).values({
+      productId: data.productId ?? null,
+      categoryId: data.categoryId ?? null,
+      minQty: data.minQty,
+      discountPct: data.discountPct,
+      label: data.label,
+    });
+  }
+}
+
+export async function deleteBulkDiscount(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const { bulkDiscounts } = await import("../drizzle/schema");
+  await db.delete(bulkDiscounts).where(eq(bulkDiscounts.id, id));
+}
+
+// ─── Low Stock Thresholds ─────────────────────────────────────────────────────
+
+export async function getLowStockThreshold(productId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const { lowStockThresholds } = await import("../drizzle/schema");
+  const [row] = await db.select().from(lowStockThresholds).where(eq(lowStockThresholds.productId, productId)).limit(1);
+  return row ?? null;
+}
+
+export async function setLowStockThreshold(productId: number, threshold: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const { lowStockThresholds } = await import("../drizzle/schema");
+  await db.insert(lowStockThresholds).values({ productId, threshold })
+    .onDuplicateKeyUpdate({ set: { threshold } });
+}
+
+export async function getAllLowStockThresholds() {
+  const db = await getDb();
+  if (!db) return [];
+  const { lowStockThresholds } = await import("../drizzle/schema");
+  return db.select().from(lowStockThresholds);
+}
+
+/** Check if product is below threshold and notify owner if needed (debounced: once per 24h) */
+export async function checkAndNotifyLowStock(productId: number, productName: string, currentStock: number) {
+  const db = await getDb();
+  if (!db) return;
+  const { lowStockThresholds } = await import("../drizzle/schema");
+  const [row] = await db.select().from(lowStockThresholds).where(eq(lowStockThresholds.productId, productId)).limit(1);
+  if (!row) return;
+  if (currentStock >= row.threshold) return;
+  // Debounce: don't notify if already notified within 24h
+  if (row.lastNotifiedAt) {
+    const hoursSince = (Date.now() - row.lastNotifiedAt.getTime()) / 3600000;
+    if (hoursSince < 24) return;
+  }
+  // Update lastNotifiedAt
+  await db.update(lowStockThresholds).set({ lastNotifiedAt: new Date() }).where(eq(lowStockThresholds.productId, productId));
+  // Send owner notification via notifyOwner
+  const { notifyOwner } = await import("./_core/notification");
+  await notifyOwner({
+    title: `⚠️ Low Stock Alert: ${productName}`,
+    content: `Product "${productName}" (ID: ${productId}) has only ${currentStock} units remaining (threshold: ${row.threshold}). Please restock soon.`,
+  });
+}

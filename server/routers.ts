@@ -45,6 +45,13 @@ import {
   getAllOrders,
   creditSellerEarningsForOrder,
   processReferralRewardsForOrder,
+  getBulkDiscountsForProduct,
+  getAllBulkDiscounts,
+  upsertBulkDiscount,
+  deleteBulkDiscount,
+  getAllLowStockThresholds,
+  setLowStockThreshold,
+  checkAndNotifyLowStock,
 } from "./db";
 import { invokeLLM } from "./_core/llm";
 import { notifyOwner } from "./_core/notification";
@@ -434,6 +441,35 @@ Key facts: USDD is a stablecoin pegged to USD. Orders typically ship in 7-21 day
         })
       )
       .mutation(({ input }) => createCategory(input)),
+
+    // Bulk Discounts
+    bulkDiscounts: adminProcedure.query(() => getAllBulkDiscounts()),
+    upsertBulkDiscount: adminProcedure
+      .input(z.object({
+        id: z.number().optional(),
+        productId: z.number().nullable().optional(),
+        categoryId: z.number().nullable().optional(),
+        minQty: z.number().min(1),
+        discountPct: z.string(),
+        label: z.string().optional(),
+      }))
+      .mutation(({ input }) => upsertBulkDiscount(input)),
+    deleteBulkDiscount: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => deleteBulkDiscount(input.id)),
+
+    // Low Stock Thresholds
+    lowStockThresholds: adminProcedure.query(() => getAllLowStockThresholds()),
+    setLowStockThreshold: adminProcedure
+      .input(z.object({ productId: z.number(), threshold: z.number().min(0) }))
+      .mutation(({ input }) => setLowStockThreshold(input.productId, input.threshold)),
+  }),
+
+  // ─── Bulk Discounts (public read) ──────────────────────────────────────────
+  bulkDiscounts: router({
+    forProduct: publicProcedure
+      .input(z.object({ productId: z.number(), categoryId: z.number().nullable().optional() }))
+      .query(({ input }) => getBulkDiscountsForProduct(input.productId, input.categoryId)),
   }),
 });
 

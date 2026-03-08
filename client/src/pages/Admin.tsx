@@ -62,12 +62,20 @@ export default function Admin() {
   const { data: products, refetch: refetchProducts } = trpc.products.list.useQuery({ page: 1, limit: 50 }, { enabled: section === "products" });
   const { data: orders, refetch: refetchOrders } = trpc.admin.orders.useQuery(undefined, { enabled: section === "orders" });
   const { data: cats, refetch: refetchCats } = trpc.categories.list.useQuery(undefined, { enabled: section === "categories" });
+  const { data: lowStockThresholds = [], refetch: refetchThresholds } = trpc.admin.lowStockThresholds.useQuery(undefined, { enabled: section === "products" });
+  const { data: bulkDiscounts = [], refetch: refetchBulkDiscounts } = trpc.admin.bulkDiscounts.useQuery(undefined, { enabled: section === "products" });
+
+  const [thresholdForm, setThresholdForm] = useState<{ productId: number; threshold: number } | null>(null);
+  const [bulkDiscountForm, setBulkDiscountForm] = useState<{ id?: number; categoryId: string; minQty: string; discountPct: string; label: string } | null>(null);
 
   const createProductMutation = trpc.admin.createProduct.useMutation({ onSuccess: () => { refetchProducts(); setShowNewProduct(false); toast.success("Product created"); } });
   const deleteProductMutation = trpc.admin.deleteProduct.useMutation({ onSuccess: () => { refetchProducts(); toast.success("Product deleted"); } });
   const generateImageMutation = trpc.admin.generateProductImage.useMutation({ onSuccess: () => { refetchProducts(); toast.success("Image generated!"); } });
   const updateOrderStatusMutation = trpc.admin.updateOrderStatus.useMutation({ onSuccess: () => refetchOrders() });
   const refreshRatesMutation = trpc.exchangeRates.refresh.useMutation({ onSuccess: () => toast.success("Rates refreshed!") });
+  const setThresholdMutation = trpc.admin.setLowStockThreshold.useMutation({ onSuccess: () => { refetchThresholds(); setThresholdForm(null); toast.success("Threshold saved"); } });
+  const upsertBulkDiscountMutation = trpc.admin.upsertBulkDiscount.useMutation({ onSuccess: () => { refetchBulkDiscounts(); setBulkDiscountForm(null); toast.success("Discount saved"); } });
+  const deleteBulkDiscountMutation = trpc.admin.deleteBulkDiscount.useMutation({ onSuccess: () => { refetchBulkDiscounts(); toast.success("Discount deleted"); } });
 
   if (!isAuthenticated || user?.role !== "admin") {
     return (
@@ -168,17 +176,21 @@ export default function Admin() {
 
             <div className="rounded-xl border border-border/60 overflow-hidden">
               <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[500px]">
+              <table className="w-full text-sm min-w-[600px]">
                 <thead className="bg-muted/40">
                   <tr>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground">Product</th>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground">Price</th>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground">Stock</th>
+                    <th className="text-left p-3 text-xs font-medium text-muted-foreground">Alert Threshold</th>
                     <th className="text-right p-3 text-xs font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/50">
-                  {products?.items.map(product => (
+                  {products?.items.map(product => {
+                    const threshold = lowStockThresholds.find(t => t.productId === product.id);
+                    const isLow = threshold && product.stock <= threshold.threshold;
+                    return (
                     <tr key={product.id} className="hover:bg-muted/20 transition-colors">
                       <td className="p-3">
                         <div className="flex items-center gap-2">
@@ -195,7 +207,33 @@ export default function Admin() {
                         </div>
                       </td>
                       <td className="p-3 text-primary font-medium">{Number(product.priceUsdd).toFixed(2)}</td>
-                      <td className="p-3 text-muted-foreground">{product.stock}</td>
+                      <td className="p-3">
+                        <span className={`text-xs font-medium ${isLow ? "text-red-600 font-bold" : "text-muted-foreground"}`}>
+                          {isLow && <AlertCircle className="w-3 h-3 inline mr-1" />}
+                          {product.stock}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        {thresholdForm?.productId === product.id ? (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              value={thresholdForm.threshold}
+                              onChange={e => setThresholdForm({ ...thresholdForm, threshold: parseInt(e.target.value) || 0 })}
+                              className="h-6 w-16 text-xs"
+                            />
+                            <Button size="sm" className="h-6 text-xs px-2" onClick={() => setThresholdMutation.mutate({ productId: product.id, threshold: thresholdForm.threshold })}>Save</Button>
+                            <Button size="sm" variant="ghost" className="h-6 text-xs px-1" onClick={() => setThresholdForm(null)}>✕</Button>
+                          </div>
+                        ) : (
+                          <button
+                            className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                            onClick={() => setThresholdForm({ productId: product.id, threshold: threshold?.threshold ?? 10 })}
+                          >
+                            {threshold ? `Alert at ${threshold.threshold}` : "Set alert"}
+                          </button>
+                        )}
+                      </td>
                       <td className="p-3">
                         <div className="flex items-center justify-end gap-1">
                           <Button
@@ -215,9 +253,73 @@ export default function Admin() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
+              </div>
+            </div>
+
+            {/* Bulk Discounts Management */}
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-foreground">Bulk Purchase Discounts</h3>
+                <Button size="sm" className="gap-1.5 h-7 text-xs" onClick={() => setBulkDiscountForm({ categoryId: "30001", minQty: "5", discountPct: "5", label: "" })}>
+                  <Plus className="w-3 h-3" /> Add Tier
+                </Button>
+              </div>
+
+              {bulkDiscountForm && (
+                <div className="p-4 rounded-xl border border-border/60 bg-card mb-3 space-y-3">
+                  <h4 className="text-xs font-semibold">New Discount Tier</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div><Label className="text-xs">Category ID</Label><Input value={bulkDiscountForm.categoryId} onChange={e => setBulkDiscountForm({...bulkDiscountForm, categoryId: e.target.value})} className="h-8 text-sm mt-1" placeholder="30001" /></div>
+                    <div><Label className="text-xs">Min Qty</Label><Input type="number" value={bulkDiscountForm.minQty} onChange={e => setBulkDiscountForm({...bulkDiscountForm, minQty: e.target.value})} className="h-8 text-sm mt-1" /></div>
+                    <div><Label className="text-xs">Discount %</Label><Input type="number" value={bulkDiscountForm.discountPct} onChange={e => setBulkDiscountForm({...bulkDiscountForm, discountPct: e.target.value})} className="h-8 text-sm mt-1" /></div>
+                    <div><Label className="text-xs">Label</Label><Input value={bulkDiscountForm.label} onChange={e => setBulkDiscountForm({...bulkDiscountForm, label: e.target.value})} className="h-8 text-sm mt-1" placeholder="Buy 5+: 5% off" /></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => upsertBulkDiscountMutation.mutate({ id: bulkDiscountForm.id, categoryId: parseInt(bulkDiscountForm.categoryId) || null, minQty: parseInt(bulkDiscountForm.minQty) || 1, discountPct: bulkDiscountForm.discountPct, label: bulkDiscountForm.label })} disabled={upsertBulkDiscountMutation.isPending}>Save</Button>
+                    <Button size="sm" variant="outline" onClick={() => setBulkDiscountForm(null)}>Cancel</Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-xl border border-border/60 overflow-hidden">
+                <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[400px]">
+                  <thead className="bg-muted/40">
+                    <tr>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Scope</th>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Min Qty</th>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Discount</th>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Label</th>
+                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {bulkDiscounts.map(d => (
+                      <tr key={d.id} className="hover:bg-muted/20">
+                        <td className="p-3 text-xs text-muted-foreground">
+                          {d.categoryId ? `Category #${d.categoryId}` : d.productId ? `Product #${d.productId}` : "All"}
+                        </td>
+                        <td className="p-3 text-xs font-medium">{d.minQty}+</td>
+                        <td className="p-3 text-xs font-semibold text-orange-600">{d.discountPct}%</td>
+                        <td className="p-3 text-xs text-muted-foreground">{d.label || "—"}</td>
+                        <td className="p-3">
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setBulkDiscountForm({ id: d.id, categoryId: String(d.categoryId ?? ""), minQty: String(d.minQty), discountPct: String(d.discountPct), label: d.label ?? "" })}><Pencil className="w-3 h-3" /></Button>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => { if (confirm("Delete this discount tier?")) deleteBulkDiscountMutation.mutate({ id: d.id }); }}><Trash2 className="w-3 h-3" /></Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {bulkDiscounts.length === 0 && (
+                      <tr><td colSpan={5} className="p-4 text-center text-xs text-muted-foreground">No bulk discount tiers configured</td></tr>
+                    )}
+                  </tbody>
+                </table>
+                </div>
               </div>
             </div>
           </div>

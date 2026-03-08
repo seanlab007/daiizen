@@ -16,6 +16,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   "toys": "🧸",
   "beauty": "💄",
   "sports": "⚽",
+  "emergency-supplies": "🚨",
 };
 
 export default function Home() {
@@ -24,6 +25,10 @@ export default function Home() {
   const { isAuthenticated } = useAuth();
   const { data: featuredProducts = [] } = trpc.products.featured.useQuery({ limit: 8 });
   const { data: categories = [] } = trpc.categories.list.useQuery();
+  const { data: emergencyProducts = [] } = trpc.products.list.useQuery(
+    { categorySlug: "emergency-supplies", limit: 4, page: 1 },
+    { select: (d) => d.items }
+  );
   const utils = trpc.useUtils();
   const addToCartMutation = trpc.cart.add.useMutation({
     onSuccess: () => { toast.success("Added to cart!"); utils.cart.count.invalidate(); },
@@ -198,6 +203,92 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      {/* Emergency Supplies Section */}
+      {emergencyProducts.length > 0 && (
+        <section className="py-16">
+          <div className="container">
+            {/* Banner Header */}
+            <div className="rounded-2xl overflow-hidden mb-8 bg-gradient-to-r from-red-950 via-red-900 to-orange-900 border border-red-800/50">
+              <div className="px-6 py-8 md:px-10 md:py-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-2xl">🚨</span>
+                    <span className="text-xs font-semibold tracking-widest text-red-300 uppercase">战区急需 · Crisis Zone Essentials</span>
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-serif font-bold text-white mb-2">
+                    Emergency Supplies
+                  </h2>
+                  <p className="text-red-200/80 text-sm max-w-md">
+                    Critical supplies for conflict zones, disaster relief, and emergency preparedness.
+                    Bulk discounts available — buy 5+ items for up to 15% off.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+                  <Button asChild className="bg-red-600 hover:bg-red-500 text-white border-0 gap-2">
+                    <Link href="/products?category=emergency-supplies">
+                      Shop All Emergency Supplies
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Product Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              {emergencyProducts.map((product) => (
+                <Link key={product.id} href={`/products/${product.slug}`}>
+                  <div className="group rounded-xl border border-red-200/30 bg-card overflow-hidden hover:border-red-400/50 hover:shadow-md transition-all relative">
+                    {/* Emergency badge */}
+                    <div className="absolute top-2 left-2 z-10">
+                      <span className="text-[10px] font-bold bg-red-600 text-white px-1.5 py-0.5 rounded-full">🚨 EMERGENCY</span>
+                    </div>
+                    <div className="aspect-square bg-muted/40 overflow-hidden">
+                      {product.images && (product.images as string[]).length > 0 ? (
+                        <img
+                          src={(product.images as string[])[0]}
+                          alt={getLocalizedName(product)}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-4xl">🚨</div>
+                      )}
+                    </div>
+                    <div className="p-3">
+                      <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug mb-1.5">
+                        {getLocalizedName(product)}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-primary">
+                          {Number(product.priceUsdd).toFixed(2)} USDD
+                        </span>
+                        <span className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full font-medium">
+                          Bulk Discount
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {/* Bulk Discount Tiers Info */}
+            <div className="mt-6 flex flex-wrap gap-3 justify-center">
+              {[
+                { qty: "5+", pct: "5%", label: "Buy 5 or more" },
+                { qty: "10+", pct: "10%", label: "Buy 10 or more" },
+                { qty: "20+", pct: "15%", label: "Buy 20 or more" },
+              ].map(({ qty, pct, label }) => (
+                <div key={qty} className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-4 py-2">
+                  <span className="text-sm font-bold text-orange-700">{pct} OFF</span>
+                  <span className="text-xs text-orange-600">{label} items</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* USDD Banner */}
       <section className="py-16">

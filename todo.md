@@ -310,3 +310,22 @@
 - [x] Add "Emergency Supplies" category to database
 - [x] Seed 16 strategic supply products with CDN images and multilingual names
 - [x] Verify products appear in Marketplace
+
+## Round 14: Emergency Section + Bulk Discount + Stock Alerts
+
+### Emergency Supplies Featured Section
+- [x] Homepage: add "Emergency Supplies" banner/section with featured products
+- [x] Add "战区急需" / "Emergency" badge to emergency category products
+- [x] Link to filtered product list for emergency category
+
+### Bulk Purchase Discounts
+- [x] DB: add bulkDiscounts table (categoryId/productId, minQty, discountPct)
+- [x] Backend: tRPC procedure to get discount tiers for a product
+- [x] Frontend: show discount tiers on product detail page (live price update as qty changes)
+- [x] Admin: bulk discount tier management UI (add/edit/delete)
+
+### Low-Stock Admin Notifications
+- [x] Backend: tRPC admin procedure to set low-stock threshold per product
+- [x] Backend: trigger notifyOwner when stock falls below threshold (24h debounce)
+- [x] Admin: low-stock threshold management UI (inline edit per product row)
+- [x] Frontend: show low-stock warning badge (red AlertCircle) in admin product list
