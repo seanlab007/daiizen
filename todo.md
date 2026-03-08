@@ -159,3 +159,16 @@
 - [x] Vitest tests for deposit payment flow
 - [x] Vitest tests for bulk import parsing
 - [x] Vitest tests for analytics data aggregation
+
+## Round 6: Full Authentication System (Google + Phone OTP + Email + Telegram)
+
+- [x] Google OAuth: /api/auth/google, /api/auth/google/callback (passport-google-oauth20)
+- [x] Email + password: /api/auth/register, /api/auth/login (bcrypt hashed passwords)
+- [x] Phone OTP: /api/auth/phone/send-otp, /api/auth/phone/verify-otp (Twilio Verify Service)
+- [x] Telegram Bot: /api/auth/telegram/config, /api/auth/telegram/callback
+- [x] Social status endpoint: /api/auth/social/status (shows which providers are enabled)
+- [x] DB: add passwordHash, phoneNumber, telegramId, googleId fields to users table
+- [x] Frontend: LoginForm with Phone/Email tabs + Google/Telegram buttons (matching darkmatterbank style)
+- [x] Frontend: Sign up page at /signup
+- [x] Frontend: Replace Manus OAuth "Sign In" button with new auth modal
+- [x] Vitest tests for all auth endpoints (71 tests passing)

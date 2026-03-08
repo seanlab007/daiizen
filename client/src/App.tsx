@@ -31,6 +31,7 @@ const ReferralPage = lazy(() => import("./pages/ReferralPage"));
 const DepositPayment = lazy(() => import("./pages/DepositPayment"));
 const BulkImport = lazy(() => import("./pages/BulkImport"));
 const SellerAnalytics = lazy(() => import("./pages/SellerAnalytics"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
 
 function PageLoader() {
   return (
@@ -65,6 +66,8 @@ function Router() {
         <Route path="/seller/deposit/:depositId" component={DepositPayment} />
         <Route path="/seller/bulk-import" component={BulkImport} />
         <Route path="/seller/analytics" component={SellerAnalytics} />
+        <Route path="/login" component={LoginPage} />
+        <Route path="/signup" component={LoginPage} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>

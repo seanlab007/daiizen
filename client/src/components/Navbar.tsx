@@ -1,7 +1,7 @@
 import { useLanguage, LANGUAGES } from "@/contexts/LanguageContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { getLoginUrl } from "@/const";
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -184,7 +184,7 @@ export default function Navbar() {
               <Button
                 size="sm"
                 className="h-9 text-sm"
-                onClick={() => (window.location.href = getLoginUrl())}
+                onClick={() => (window.location.href = "/login")}
               >
                 {t("nav.login")}
               </Button>

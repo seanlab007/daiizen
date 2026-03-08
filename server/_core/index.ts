@@ -4,6 +4,9 @@ import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
+import { registerLocalAuthRoutes } from "./localAuth";
+import { registerSocialAuthRoutes } from "./socialAuth";
+import { registerPhoneAuthRoutes } from "./phoneAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -36,8 +39,15 @@ async function startServer() {
   // Health check for Render / uptime monitoring
   app.get("/api/health", (_req, res) => res.json({ status: "ok", ts: Date.now() }));
 
-  // OAuth callback under /api/oauth/callback
+  // Manus OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+  // Local auth: email+password register/login
+  registerLocalAuthRoutes(app);
+  // Social auth: Google OAuth + Telegram
+  registerSocialAuthRoutes(app);
+  // Phone auth: SMS OTP via Twilio
+  registerPhoneAuthRoutes(app);
+
   // tRPC API
   app.use(
     "/api/trpc",
