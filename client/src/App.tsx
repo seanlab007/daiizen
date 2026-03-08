@@ -28,6 +28,9 @@ const StoreProductDetail = lazy(() => import("./pages/StoreProductDetail"));
 const InfluencerOnboarding = lazy(() => import("./pages/InfluencerOnboarding"));
 const SupplyChainOnboarding = lazy(() => import("./pages/SupplyChainOnboarding"));
 const ReferralPage = lazy(() => import("./pages/ReferralPage"));
+const DepositPayment = lazy(() => import("./pages/DepositPayment"));
+const BulkImport = lazy(() => import("./pages/BulkImport"));
+const SellerAnalytics = lazy(() => import("./pages/SellerAnalytics"));
 
 function PageLoader() {
   return (
@@ -59,6 +62,9 @@ function Router() {
         <Route path="/influencer-onboarding" component={InfluencerOnboarding} />
         <Route path="/supply-chain-onboarding" component={SupplyChainOnboarding} />
         <Route path="/referral" component={ReferralPage} />
+        <Route path="/seller/deposit/:depositId" component={DepositPayment} />
+        <Route path="/seller/bulk-import" component={BulkImport} />
+        <Route path="/seller/analytics" component={SellerAnalytics} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>

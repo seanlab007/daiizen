@@ -127,3 +127,35 @@
 ### Tests
 - [x] Vitest tests for referral system (3-level enforcement)
 - [x] Vitest tests for dropship order flow
+
+## Round 5: Payment, Bulk Import & Analytics
+
+### Deposit Payment (Alipay / WeChat / UnionPay)
+- [x] Admin: configure payment QR code images (Alipay, WeChat, UnionPay) and account names via admin panel
+- [x] Deposit flow: seller selects payment method, sees QR code + account info, uploads transfer screenshot
+- [x] DB: store payment method, transfer screenshot URL, amount, status per deposit record
+- [x] Admin: review deposit screenshot, confirm or reject with reason
+- [x] Seller: deposit status tracking (pending review / confirmed / rejected)
+- [x] Notification: notify seller when deposit is confirmed or rejected
+
+### Supply Chain Bulk Product Import
+- [x] CSV/Excel template download (with field definitions)
+- [x] File upload endpoint: parse CSV/Excel on server, validate fields
+- [x] AI-assisted field mapping: if columns don't match template, AI infers mapping
+- [x] Bulk insert products with validation errors reported per row
+- [x] Import result summary: success count, error rows with reasons
+- [x] Frontend: upload UI with progress, result table
+
+### Influencer Sales Analytics Dashboard
+- [x] Track product page views (click events stored per store product)
+- [x] Track add-to-cart events per store product
+- [x] Track completed orders per store product (GMV, units sold)
+- [x] Influencer dashboard: per-product stats (views, cart adds, orders, GMV, conversion rate)
+- [x] Influencer dashboard: total earnings breakdown (markup profit + referral rewards)
+- [x] Influencer dashboard: top performing products chart
+- [x] Admin: platform-wide GMV and commission revenue analytics
+
+### Tests
+- [x] Vitest tests for deposit payment flow
+- [x] Vitest tests for bulk import parsing
+- [x] Vitest tests for analytics data aggregation

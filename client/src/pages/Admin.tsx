@@ -5,11 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useParams, useLocation } from "wouter";
 import { useState } from "react";
-import { Package, ShoppingBag, BarChart3, Plus, Pencil, Trash2, Sparkles, RefreshCw, CheckCircle, Store, DollarSign, Settings, AlertCircle, Clock, XCircle } from "lucide-react";
+import { Package, ShoppingBag, BarChart3, Plus, Pencil, Trash2, Sparkles, RefreshCw, CheckCircle, Store, DollarSign, Settings, AlertCircle, Clock, XCircle, CreditCard, Smartphone, Banknote } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 
-type Section = "dashboard" | "products" | "orders" | "categories" | "rates" | "stores" | "deposits" | "marketplace-config";
+type Section = "dashboard" | "products" | "orders" | "categories" | "rates" | "stores" | "deposits" | "marketplace-config" | "payment-config";
 
 const STATUS_COLORS: Record<string, string> = {
   pending_payment: "text-amber-600",
@@ -39,6 +39,10 @@ export default function Admin() {
   const { data: pendingDeposits, refetch: refetchDeposits } = trpc.store.adminListDeposits.useQuery({ status: "pending", page: 1, limit: 50 }, { enabled: section === "deposits" && isAuthenticated && user?.role === "admin" });
   const { data: marketplaceConfig, refetch: refetchConfig } = trpc.store.getConfig.useQuery(undefined, { enabled: section === "marketplace-config" && isAuthenticated && user?.role === "admin" });
   const [configForm, setConfigForm] = useState({ commissionRate: "", depositAmount: "", depositWalletAddress: "" });
+  const [paymentForm, setPaymentForm] = useState({ method: "alipay", accountName: "", accountNumber: "", qrCodeUrl: "", isEnabled: true });
+  const { data: paymentMethods, refetch: refetchPaymentMethods } = trpc.payment.adminGetPaymentConfigs.useQuery(undefined, { enabled: section === "payment-config" && isAuthenticated && user?.role === "admin" });
+  const setPaymentMethodMutation = trpc.payment.adminUpdatePaymentConfig.useMutation({ onSuccess: () => { refetchPaymentMethods(); toast.success("收款方式已更新"); setPaymentForm({ method: "alipay", accountName: "", accountNumber: "", qrCodeUrl: "", isEnabled: true }); } });
+  const deletePaymentMethodMutation = trpc.payment.adminUpdatePaymentConfig.useMutation({ onSuccess: () => { refetchPaymentMethods(); toast.success("已删除"); } });
   const approveStoreMutation = trpc.store.adminApproveStore.useMutation({ onSuccess: () => { refetchStores(); toast.success("店铺已通过"); } });
   const rejectStoreMutation = trpc.store.adminRejectStore.useMutation({ onSuccess: () => { refetchStores(); toast.success("店铺已拒绝"); } });
   const suspendStoreMutation = trpc.store.adminSuspendStore.useMutation({ onSuccess: () => { refetchStores(); toast.success("店铺已暂停"); } });
@@ -73,6 +77,7 @@ export default function Admin() {
     { id: "stores", label: "店铺管理", icon: Store },
     { id: "deposits", label: "保证金", icon: DollarSign },
     { id: "marketplace-config", label: "市场配置", icon: Settings },
+    { id: "payment-config", label: "收款配置", icon: CreditCard },
   ];
 
   return (
@@ -454,6 +459,83 @@ export default function Admin() {
                 disabled={updateConfigMutation.isPending}
               >
                 {updateConfigMutation.isPending ? "保存中..." : "保存配置"}
+              </Button>
+            </div>
+          </div>
+        )}
+        {/* Payment Config */}
+        {section === "payment-config" && (
+          <div className="max-w-2xl space-y-6">
+            <h2 className="text-lg font-semibold">收款方式配置</h2>
+            <p className="text-sm text-muted-foreground">配置支付宝、微信、銀联收款账户，卖家缴交保证金时将看到这些账户信息</p>
+
+            {/* Existing methods */}
+            {paymentMethods && paymentMethods.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium">已配置收款方式</h3>
+                {paymentMethods.map((m: any) => (
+                  <div key={m.method} className="flex items-center justify-between p-4 rounded-xl border border-border/60 bg-card">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs ${
+                        m.method === "alipay" ? "bg-blue-500" : m.method === "wechat" ? "bg-green-500" : m.method === "unionpay" ? "bg-red-500" : "bg-gray-500"
+                      }`}>
+                        {m.method === "alipay" || m.method === "wechat" ? <Smartphone className="w-4 h-4" /> : <CreditCard className="w-4 h-4" />}
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium">{m.method === "alipay" ? "支付宝" : m.method === "wechat" ? "微信支付" : m.method === "unionpay" ? "銀联转账" : m.method}</div>
+                        <div className="text-xs text-muted-foreground">{m.accountName} · {m.accountNumber}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${m.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                        {m.isActive ? "启用" : "关闭"}
+                      </span>
+                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => deletePaymentMethodMutation.mutate({ method: m.method, accountName: m.accountName, accountNumber: m.accountNumber, isEnabled: false })}>
+                        删除
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add/Edit method */}
+            <div className="p-5 rounded-xl border border-border/60 bg-card space-y-4">
+              <h3 className="text-sm font-medium">添加/更新收款方式</h3>
+              <div>
+                <Label className="text-xs">支付方式</Label>
+                <select
+                  value={paymentForm.method}
+                  onChange={e => setPaymentForm({ ...paymentForm, method: e.target.value })}
+                  className="w-full mt-1 h-8 text-sm rounded-md border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option value="alipay">支付宝</option>
+                  <option value="wechat">微信支付</option>
+                  <option value="unionpay">銀联转账</option>
+                </select>
+              </div>
+              <div>
+                <Label className="text-xs">收款人姓名 / 商户名</Label>
+                <Input className="h-8 text-sm mt-1" placeholder="如：张三 / Daiizen商贸" value={paymentForm.accountName} onChange={e => setPaymentForm({ ...paymentForm, accountName: e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs">手机号 / 账号</Label>
+                <Input className="h-8 text-sm mt-1" placeholder="支付宝手机号或銀行卡号" value={paymentForm.accountNumber} onChange={e => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs">收款二维码 URL（可选）</Label>
+                <Input className="h-8 text-sm mt-1" placeholder="二维码图片的直链 URL" value={paymentForm.qrCodeUrl} onChange={e => setPaymentForm({ ...paymentForm, qrCodeUrl: e.target.value })} />
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" checked={paymentForm.isEnabled} onChange={e => setPaymentForm({ ...paymentForm, isEnabled: e.target.checked })} className="rounded" />
+                <Label className="text-xs cursor-pointer">启用此收款方式</Label>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setPaymentMethodMutation.mutate({ method: paymentForm.method as any, accountName: paymentForm.accountName, accountNumber: paymentForm.accountNumber, qrCodeUrl: paymentForm.qrCodeUrl || undefined, isEnabled: paymentForm.isEnabled })}
+                disabled={setPaymentMethodMutation.isPending || !paymentForm.accountName || !paymentForm.accountNumber}
+              >
+                {setPaymentMethodMutation.isPending ? "保存中..." : "保存收款方式"}
               </Button>
             </div>
           </div>

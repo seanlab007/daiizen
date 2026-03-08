@@ -1,6 +1,8 @@
 import { COOKIE_NAME } from "@shared/const";
 import { storeRouter } from "./routers/store";
 import { s2b2cRouter } from "./routers/s2b2c";
+import { paymentRouter } from "./routers/payment";
+import { bulkImportRouter } from "./routers/bulkImport";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
@@ -50,6 +52,8 @@ export const appRouter = router({
   system: systemRouter,
   store: storeRouter,
   s2b2c: s2b2cRouter,
+  payment: paymentRouter,
+  bulkImport: bulkImportRouter,
 
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
