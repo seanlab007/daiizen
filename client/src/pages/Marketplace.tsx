@@ -133,6 +133,8 @@ export default function Marketplace() {
   const [tab, setTab] = useState<"products" | "stores">("products");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [storeSearch, setStoreSearch] = useState("");
+  const [debouncedStoreSearch, setDebouncedStoreSearch] = useState("");
   const [page, setPage] = useState(1);
   const [platformFilter, setPlatformFilter] = useState<string>("");
   const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
@@ -156,10 +158,16 @@ export default function Marketplace() {
   });
 
   const stores = trpc.store.listStores.useQuery({
-    search: debouncedSearch || undefined,
+    search: debouncedStoreSearch || debouncedSearch || undefined,
     page,
     limit: 20,
   });
+
+  const handleStoreSearch = (value: string) => {
+    setStoreSearch(value);
+    setPage(1);
+    setTimeout(() => setDebouncedStoreSearch(value), 400);
+  };
 
   const handleSearch = (value: string) => {
     setSearch(value);
@@ -376,7 +384,25 @@ export default function Marketplace() {
           )}
         </TabsContent>
 
-        <TabsContent value="stores" className="mt-4">
+        <TabsContent value="stores" className="mt-4 space-y-4">
+          {/* Store-specific search */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              placeholder={t("marketplace.search_stores")}
+              value={storeSearch}
+              onChange={(e) => handleStoreSearch(e.target.value)}
+            />
+            {storeSearch && (
+              <button
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => handleStoreSearch("")}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
           {stores.isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {Array.from({ length: 6 }).map((_, i) => (

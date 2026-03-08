@@ -326,6 +326,32 @@ Key facts: USDD is a stablecoin pegged to USD. Orders typically ship in 7-21 day
           // Process referral rewards for the buyer
           await processReferralRewardsForOrder(input.orderId, order.userId).catch(() => {});
         }
+        // Notify buyer on shipped and completed
+        if (input.status === "shipped") {
+          await createUserNotification({
+            userId: order.userId,
+            type: "order_status",
+            title: `Order #${order.orderNumber} Shipped`,
+            body: `Your order has been shipped and is on its way. Check your order for tracking details.`,
+            link: `/orders/${order.id}`,
+          }).catch(() => {});
+        } else if (input.status === "completed") {
+          await createUserNotification({
+            userId: order.userId,
+            type: "order_status",
+            title: `Order #${order.orderNumber} Completed`,
+            body: `Your order has been delivered. Please leave a review for the products you received!`,
+            link: `/orders/${order.id}`,
+          }).catch(() => {});
+        } else if (input.status === "cancelled") {
+          await createUserNotification({
+            userId: order.userId,
+            type: "order_status",
+            title: `Order #${order.orderNumber} Cancelled`,
+            body: `Your order has been cancelled. Please contact support if you have questions.`,
+            link: `/orders/${order.id}`,
+          }).catch(() => {});
+        }
         await notifyOwner({
           title: `Order Status Updated`,
           content: `Order #${order.orderNumber} status changed to ${input.status}`,

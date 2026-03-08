@@ -10,9 +10,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ShoppingCart, User, ChevronDown, Search, Menu, X, Leaf } from "lucide-react";
+import { ShoppingCart, User, ChevronDown, Search, Menu, X, Leaf, Bell } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 
 export default function Navbar() {
@@ -24,6 +24,32 @@ export default function Navbar() {
 
   const { data: cartData } = trpc.cart.count.useQuery(undefined, { enabled: isAuthenticated });
   const cartCount = cartData?.count ?? 0;
+
+  const { data: notifData, refetch: refetchNotifs } = trpc.notifications.list.useQuery(
+    { limit: 10 },
+    { enabled: isAuthenticated, refetchInterval: 30000 }
+  );
+  const { data: unreadData, refetch: refetchUnread } = trpc.notifications.unreadCount.useQuery(
+    undefined,
+    { enabled: isAuthenticated, refetchInterval: 30000 }
+  );
+  const markReadMutation = trpc.notifications.markRead.useMutation({
+    onSuccess: () => { refetchNotifs(); refetchUnread(); },
+  });
+  const unreadCount = unreadData?.count ?? 0;
+  const notifications = Array.isArray(notifData) ? notifData : [];
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,6 +153,62 @@ export default function Navbar() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* Notification Bell */}
+            {isAuthenticated && (
+              <div className="relative" ref={notifRef}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 w-9 p-0 relative"
+                  onClick={() => {
+                    setNotifOpen((v) => !v);
+                  }}
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </Button>
+                {notifOpen && (
+                  <div className="absolute right-0 top-10 w-80 bg-background border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                    <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                      <span className="font-semibold text-sm">Notifications</span>
+                      {notifications.length > 0 && (
+                        <button
+                          className="text-xs text-primary hover:underline"
+                          onClick={() => markReadMutation.mutate({})}
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-6 text-center text-sm text-muted-foreground">No notifications</div>
+                    ) : (
+                      notifications.map((n: { id: number; title: string; body: string; link?: string | null; isRead: number; createdAt: Date | number }) => (
+                        <div
+                          key={n.id}
+                          className={`px-4 py-3 border-b border-border/50 cursor-pointer hover:bg-accent/50 transition-colors ${
+                            !n.isRead ? "bg-primary/5" : ""
+                          }`}
+                          onClick={() => {
+                            if (!n.isRead) markReadMutation.mutate({ ids: [n.id] });
+                            if (n.link) { setLocation(n.link); setNotifOpen(false); }
+                          }}
+                        >
+                          <p className={`text-sm font-medium ${!n.isRead ? "text-foreground" : "text-muted-foreground"}`}>{n.title}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.body}</p>
+                          <p className="text-[10px] text-muted-foreground/60 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Cart */}
             <Link href="/cart">

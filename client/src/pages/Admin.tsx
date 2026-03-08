@@ -167,7 +167,8 @@ export default function Admin() {
             )}
 
             <div className="rounded-xl border border-border/60 overflow-hidden">
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[500px]">
                 <thead className="bg-muted/40">
                   <tr>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground">Product</th>
@@ -217,6 +218,7 @@ export default function Admin() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}
@@ -224,7 +226,8 @@ export default function Admin() {
         {/* Orders */}
         {section === "orders" && (
           <div className="rounded-xl border border-border/60 overflow-hidden">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[600px]">
               <thead className="bg-muted/40">
                 <tr>
                   <th className="text-left p-3 text-xs font-medium text-muted-foreground">Order</th>
@@ -263,6 +266,7 @@ export default function Admin() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 
@@ -289,7 +293,8 @@ export default function Admin() {
                 <p className="text-sm text-muted-foreground py-4">{t("admin.no_pending_stores")}</p>
               ) : (
                 <div className="rounded-xl border border-border/60 overflow-hidden">
-                  <table className="w-full text-sm">
+                  <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[500px]">
                     <thead className="bg-muted/40">
                       <tr>
                         <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.store")}</th>
@@ -323,13 +328,15 @@ export default function Admin() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               )}
             </div>
             <div>
               <h2 className="text-lg font-semibold mb-3">{t("admin.all_stores")}</h2>
               <div className="rounded-xl border border-border/60 overflow-hidden">
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[450px]">
                   <thead className="bg-muted/40">
                     <tr>
                       <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.store")}</th>
@@ -368,6 +375,7 @@ export default function Admin() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
           </div>
@@ -381,7 +389,8 @@ export default function Admin() {
               <p className="text-sm text-muted-foreground py-4">{t("admin.no_pending_deposits")}</p>
             ) : (
               <div className="rounded-xl border border-border/60 overflow-hidden">
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[550px]">
                   <thead className="bg-muted/40">
                     <tr>
                       <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.store")}</th>
@@ -422,6 +431,7 @@ export default function Admin() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </div>

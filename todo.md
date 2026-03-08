@@ -283,3 +283,23 @@
 - [x] Seller notification: in-app notification to store owner on new order (DB-backed, 30s polling)
 - [x] Seller notification: notification bell in SellerDashboard with unread badge + popover list
 - [x] Vitest tests: 71 tests passing (6 test files)
+
+## Round 12: Buyer Notifications + Store Search + Mobile Responsive
+
+### Buyer Order Status Notifications
+- [x] Backend: send userNotification to buyer when order status → "shipped"
+- [x] Backend: send userNotification to buyer when order status → "completed"
+- [x] Frontend: Notification bell in Navbar for all logged-in users (not just sellers)
+- [x] Frontend: Notification dropdown in Navbar with unread badge
+
+### Store Search in Marketplace
+- [x] Backend: extend marketplace tRPC procedure to accept storeSearch param
+- [x] Backend: filter stores by name when storeSearch is provided
+- [x] Frontend: add store name search input to Marketplace page
+- [x] Frontend: show store results section when searching by store name
+
+### Mobile Responsive Fixes
+- [x] SellerDashboard: uses card grid layout (already mobile-friendly)
+- [x] Admin page: fix table overflow on mobile (horizontal scroll with overflow-x-auto + min-w)
+- [x] WalletPage: card-based layout (already mobile-friendly)
+- [x] Navbar: notification bell works on mobile (already implemented)
