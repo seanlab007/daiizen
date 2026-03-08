@@ -8,6 +8,7 @@ import {
   confirmUsddDeposit,
   rejectUsddDeposit,
   getAllPendingUsddDeposits,
+  payOrderWithBalance,
 } from "../db";
 import { storagePut } from "../storage";
 import { notifyOwner } from "../_core/notification";
@@ -63,6 +64,25 @@ export const walletRouter = router({
       const key = `deposits/${ctx.user.id}-${Date.now()}.${ext}`;
       const { url } = await storagePut(key, buffer, input.mimeType);
       return { url };
+    }),
+
+  // Pay for an order using USDD wallet balance
+  payWithBalance: protectedProcedure
+    .input(z.object({
+      addressId: z.number(),
+      notes: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const result = await payOrderWithBalance(ctx.user.id, input.addressId, input.notes);
+        await notifyOwner({
+          title: `💰 USDD Balance Payment: Order #${result.order.orderNumber}`,
+          content: `User ${ctx.user.name ?? ctx.user.email ?? ctx.user.id} paid ${result.order.totalUsdd} USDD from wallet balance. New balance: ${result.newBalance.toFixed(2)} USDD`,
+        }).catch(() => {});
+        return result;
+      } catch (err: any) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: err.message });
+      }
     }),
 
   // Admin: get all pending deposit requests

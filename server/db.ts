@@ -734,3 +734,126 @@ export async function markWithdrawalPaid(id: number, txHash: string, adminNote?:
   }).where(eq(withdrawalRequests.id, id));
   return { success: true };
 }
+
+// ─── USDD Balance Payment ─────────────────────────────────────────────────────
+
+/**
+ * Pay for an order using USDD wallet balance.
+ * 1. Checks user has sufficient balance
+ * 2. Creates order (cart → order)
+ * 3. Deducts balance and records transaction
+ * 4. Marks order as paid immediately
+ * 5. Credits seller earnings (pendingBalanceUsdd on stores table)
+ */
+export async function payOrderWithBalance(userId: number, addressId: number, notes?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const { usddWallets, usddTransactions, stores, storeOrders, orderItems: orderItemsTable, storeProducts } = await import("../drizzle/schema");
+
+  // 1. Create the order first (cart → order, status = pending_payment)
+  const order = await createOrder(userId, addressId, notes);
+  const totalAmount = parseFloat(order.totalUsdd);
+
+  // 2. Check balance
+  const wallet = await getOrCreateUsddWallet(userId);
+  const currentBalance = parseFloat(wallet.balanceUsdd);
+  if (currentBalance < totalAmount) {
+    // Roll back: cancel the order
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, order.id));
+    throw new Error(`Insufficient USDD balance. You have ${currentBalance.toFixed(2)} USDD but need ${totalAmount.toFixed(2)} USDD.`);
+  }
+
+  // 3. Deduct balance
+  const newBalance = (currentBalance - totalAmount).toFixed(6);
+  await db.update(usddWallets).set({
+    balanceUsdd: newBalance,
+    totalSpentUsdd: (parseFloat(wallet.totalSpentUsdd) + totalAmount).toFixed(6),
+  }).where(eq(usddWallets.userId, userId));
+
+  // 4. Record the spend transaction
+  await db.insert(usddTransactions).values({
+    userId,
+    type: "payment",
+    amountUsdd: totalAmount.toFixed(6),
+    balanceAfterUsdd: newBalance,
+    status: "confirmed",
+    note: `Order #${order.orderNumber}`,
+    confirmedAt: new Date(),
+  });
+
+  // 5. Mark order as paid immediately
+  await db.update(orders).set({
+    status: "paid",
+    paymentMethod: "usdd_balance",
+    paymentConfirmedAt: new Date(),
+  }).where(eq(orders.id, order.id));
+
+  // 6. Credit seller earnings for store products in this order
+  // Get order items and find which store each product belongs to
+  const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id));
+  const storeEarningsMap = new Map<number, number>(); // storeId → earnings
+
+  for (const item of items) {
+    // Check if this product is a store product
+    const [sp] = await db.select().from(storeProducts).where(eq(storeProducts.id, item.productId)).limit(1);
+    if (sp) {
+      const subtotal = parseFloat(item.subtotalUsdd);
+      // Get platform commission rate from store or use default 5%
+      const [store] = await db.select().from(stores).where(eq(stores.id, sp.storeId)).limit(1);
+      const commissionRate = store?.commissionRate ? parseFloat(store.commissionRate) : 0.05;
+      const commission = subtotal * commissionRate;
+      const sellerEarnings = subtotal - commission;
+      storeEarningsMap.set(sp.storeId, (storeEarningsMap.get(sp.storeId) ?? 0) + sellerEarnings);
+    }
+  }
+
+  // Update store earnings
+  for (const entry of Array.from(storeEarningsMap.entries())) {
+    const [storeId, earnings] = entry;
+    const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
+    if (store) {
+      await db.update(stores).set({
+        totalEarningsUsdd: (parseFloat(store.totalEarningsUsdd) + earnings).toFixed(6),
+        pendingBalanceUsdd: (parseFloat(store.pendingBalanceUsdd) + earnings).toFixed(6),
+      }).where(eq(stores.id, storeId));
+    }
+  }
+
+  const [updatedOrder] = await db.select().from(orders).where(eq(orders.id, order.id)).limit(1);
+  return { order: updatedOrder, newBalance: parseFloat(newBalance) };
+}
+
+/**
+ * Credit seller earnings when an order is marked as completed (for non-balance payments).
+ * Called when admin marks order as "completed".
+ */
+export async function creditSellerEarningsForOrder(orderId: number) {
+  const db = await getDb();
+  if (!db) return;
+  const { stores, storeProducts, orderItems: orderItemsTable } = await import("../drizzle/schema");
+
+  const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, orderId));
+  const storeEarningsMap = new Map<number, number>();
+
+  for (const item of items) {
+    const [sp] = await db.select().from(storeProducts).where(eq(storeProducts.id, item.productId)).limit(1);
+    if (sp) {
+      const subtotal = parseFloat(item.subtotalUsdd);
+      const [store] = await db.select().from(stores).where(eq(stores.id, sp.storeId)).limit(1);
+      const commissionRate = store?.commissionRate ? parseFloat(store.commissionRate) : 0.05;
+      const sellerEarnings = subtotal * (1 - commissionRate);
+      storeEarningsMap.set(sp.storeId, (storeEarningsMap.get(sp.storeId) ?? 0) + sellerEarnings);
+    }
+  }
+
+  for (const entry of Array.from(storeEarningsMap.entries())) {
+    const [storeId, earnings] = entry;
+    const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
+    if (store) {
+      await db.update(stores).set({
+        totalEarningsUsdd: (parseFloat(store.totalEarningsUsdd) + earnings).toFixed(6),
+        pendingBalanceUsdd: (parseFloat(store.pendingBalanceUsdd) + earnings).toFixed(6),
+      }).where(eq(stores.id, storeId));
+    }
+  }
+}

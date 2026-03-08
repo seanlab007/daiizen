@@ -239,3 +239,12 @@
 - [x] Notification: admin notified on new withdrawal request
 - [x] tRPC procedures: withdrawal.requestWithdrawal, withdrawal.getMyWithdrawals, withdrawal.adminGetAll, withdrawal.adminApprove, withdrawal.adminReject, withdrawal.adminMarkPaid
 - [ ] Vitest tests for withdrawal procedures
+
+## Round 8: USDD Balance Payment & Seller Auto-Settlement
+- [x] tRPC: wallet.payWithBalance procedure (deduct balance, create order, notify seller)
+- [x] tRPC: seller earnings auto-settlement on order completion (credit seller wallet)
+- [x] Frontend: Checkout page - show USDD balance, add "Pay with USDD Balance" button
+- [x] Frontend: Show insufficient balance warning with link to /wallet deposit
+- [x] Frontend: Payment success page shows USDD deduction confirmation (toast + redirect to order)
+- [x] Admin: Order list shows payment method (USDD balance vs manual)
+- [x] Vitest tests for wallet.payWithBalance procedure (71 tests passing)
