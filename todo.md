@@ -62,4 +62,23 @@
 - [x] Configure USDD TRON TRC-20 wallet address (via VITE_USDD_PAYMENT_ADDRESS env var)
 - [x] Seed 25 Yiwu plastic/daily goods products with real CDN images
 - [x] Add 5 product categories: Plastic Kitchenware, Storage, Bottles & Cups, Daily Essentials, Cleaning
-- [ ] Domain binding guide for www.daiizen.com (Alibaba Cloud)
+- [x] Domain binding guide for www.daiizen.com (Alibaba Cloud)
+
+## Round 3: B2C Multi-Vendor Marketplace
+- [x] DB schema: stores, storeProducts, storeDeposits, commissions tables
+- [x] Seller: apply to open store (with deposit payment)
+- [x] Seller: store profile management (name, logo, description, banner)
+- [x] Seller: product upload (own products with images, price, stock)
+- [x] Seller: external link import (TikTok/Pinduoduo/Xiaohongshu/Amazon/SHEIN/TikTok Shop)
+- [x] External link conversion: parse product info from external URL via AI
+- [x] Platform commission: configurable rate per sale, auto-deduct from seller earnings
+- [x] Deposit system: required deposit to open store, admin-exempt
+- [x] Seller dashboard: sales stats, orders, earnings, commission history
+- [x] Buyer: marketplace page showing all stores and products
+- [x] Buyer: individual store page
+- [x] Buyer: store product detail page
+- [x] Admin: store approval/rejection workflow
+- [x] Admin: commission rate configuration
+- [x] Admin: deposit management (view, refund)
+- [x] Admin: seller management (suspend, reinstate)
+- [x] Vitest tests for store/seller procedures

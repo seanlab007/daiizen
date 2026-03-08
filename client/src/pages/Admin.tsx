@@ -5,11 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useParams, useLocation } from "wouter";
 import { useState } from "react";
-import { Package, ShoppingBag, BarChart3, Plus, Pencil, Trash2, Sparkles, RefreshCw, CheckCircle } from "lucide-react";
+import { Package, ShoppingBag, BarChart3, Plus, Pencil, Trash2, Sparkles, RefreshCw, CheckCircle, Store, DollarSign, Settings, AlertCircle, Clock, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 
-type Section = "dashboard" | "products" | "orders" | "categories" | "rates";
+type Section = "dashboard" | "products" | "orders" | "categories" | "rates" | "stores" | "deposits" | "marketplace-config";
 
 const STATUS_COLORS: Record<string, string> = {
   pending_payment: "text-amber-600",
@@ -34,6 +34,18 @@ export default function Admin() {
   });
 
   const { data: stats } = trpc.admin.stats.useQuery(undefined, { enabled: isAuthenticated && user?.role === "admin" });
+  const { data: pendingStores, refetch: refetchStores } = trpc.store.adminListStores.useQuery({ status: "pending", page: 1, limit: 50 }, { enabled: section === "stores" && isAuthenticated && user?.role === "admin" });
+  const { data: allStores } = trpc.store.adminListStores.useQuery({ page: 1, limit: 50 }, { enabled: section === "stores" && isAuthenticated && user?.role === "admin" });
+  const { data: pendingDeposits, refetch: refetchDeposits } = trpc.store.adminListDeposits.useQuery({ status: "pending", page: 1, limit: 50 }, { enabled: section === "deposits" && isAuthenticated && user?.role === "admin" });
+  const { data: marketplaceConfig, refetch: refetchConfig } = trpc.store.getConfig.useQuery(undefined, { enabled: section === "marketplace-config" && isAuthenticated && user?.role === "admin" });
+  const [configForm, setConfigForm] = useState({ commissionRate: "", depositAmount: "", depositWalletAddress: "" });
+  const approveStoreMutation = trpc.store.adminApproveStore.useMutation({ onSuccess: () => { refetchStores(); toast.success("店铺已通过"); } });
+  const rejectStoreMutation = trpc.store.adminRejectStore.useMutation({ onSuccess: () => { refetchStores(); toast.success("店铺已拒绝"); } });
+  const suspendStoreMutation = trpc.store.adminSuspendStore.useMutation({ onSuccess: () => { refetchStores(); toast.success("店铺已暂停"); } });
+  const reinstateStoreMutation = trpc.store.adminReinstateStore.useMutation({ onSuccess: () => { refetchStores(); toast.success("店铺已恢复"); } });
+  const confirmDepositMutation = trpc.store.adminConfirmDeposit.useMutation({ onSuccess: () => { refetchDeposits(); toast.success("保证金已确认"); } });
+  const refundDepositMutation = trpc.store.adminRefundDeposit.useMutation({ onSuccess: () => { refetchDeposits(); toast.success("已拒绝保证金"); } });
+  const updateConfigMutation = trpc.store.adminSetConfig.useMutation({ onSuccess: () => { refetchConfig(); toast.success("配置已更新"); } });
   const { data: products, refetch: refetchProducts } = trpc.products.list.useQuery({ page: 1, limit: 50 }, { enabled: section === "products" });
   const { data: orders, refetch: refetchOrders } = trpc.admin.orders.useQuery(undefined, { enabled: section === "orders" });
   const { data: cats, refetch: refetchCats } = trpc.categories.list.useQuery(undefined, { enabled: section === "categories" });
@@ -58,6 +70,9 @@ export default function Admin() {
     { id: "orders", label: "Orders", icon: ShoppingBag },
     { id: "categories", label: "Categories", icon: Package },
     { id: "rates", label: "Exchange Rates", icon: RefreshCw },
+    { id: "stores", label: "店铺管理", icon: Store },
+    { id: "deposits", label: "保证金", icon: DollarSign },
+    { id: "marketplace-config", label: "市场配置", icon: Settings },
   ];
 
   return (
@@ -246,6 +261,201 @@ export default function Admin() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">Rates are fetched from exchangerate-api.com and stored in the database.</p>
+          </div>
+        )}
+
+        {/* Store Management */}
+        {section === "stores" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold mb-3">待审核店铺</h2>
+              {pendingStores?.stores.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4">暂无待审核店铺</p>
+              ) : (
+                <div className="rounded-xl border border-border/60 overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/40">
+                      <tr>
+                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">店铺</th>
+                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">卖家</th>
+                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">申请时间</th>
+                        <th className="text-right p-3 text-xs font-medium text-muted-foreground">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/50">
+                      {pendingStores?.stores.map((store: any) => (
+                        <tr key={store.id} className="hover:bg-muted/20 transition-colors">
+                          <td className="p-3">
+                            <div>
+                              <p className="font-medium">{store.name}</p>
+                              <p className="text-xs text-muted-foreground">{store.description?.slice(0, 60)}</p>
+                            </div>
+                          </td>
+                          <td className="p-3 text-muted-foreground text-xs">{store.ownerName ?? store.ownerId}</td>
+                          <td className="p-3 text-muted-foreground text-xs">{new Date(store.createdAt).toLocaleDateString()}</td>
+                          <td className="p-3">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button size="sm" className="h-7 text-xs gap-1" onClick={() => approveStoreMutation.mutate({ id: store.id })} disabled={approveStoreMutation.isPending}>
+                                <CheckCircle className="w-3 h-3" /> 通过
+                              </Button>
+                              <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" onClick={() => { const note = prompt("拒绝原因（可选）"); trpc.useUtils().store.adminListStores.invalidate(); rejectStoreMutation.mutate({ id: store.id, adminNote: note ?? "" }); }} disabled={approveStoreMutation.isPending}>
+                                <XCircle className="w-3 h-3" /> 拒绝
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold mb-3">全部店铺</h2>
+              <div className="rounded-xl border border-border/60 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/40">
+                    <tr>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">店铺</th>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">状态</th>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">商品数</th>
+                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {allStores?.stores.map((store: any) => (
+                      <tr key={store.id} className="hover:bg-muted/20 transition-colors">
+                        <td className="p-3 font-medium">{store.name}</td>
+                        <td className="p-3">
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                            store.status === "active" ? "bg-green-100 text-green-700" :
+                            store.status === "pending" ? "bg-yellow-100 text-yellow-700" :
+                            "bg-red-100 text-red-700"
+                          }`}>{store.status}</span>
+                        </td>
+                        <td className="p-3 text-muted-foreground">{store.productCount ?? 0}</td>
+                        <td className="p-3">
+                          <div className="flex items-center justify-end gap-2">
+                            {store.status === "active" && (
+                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => suspendStoreMutation.mutate({ id: store.id, adminNote: prompt("暂停原因") ?? "" })} disabled={suspendStoreMutation.isPending}>
+                                暂停
+                              </Button>
+                            )}
+                            {store.status === "suspended" && (
+                              <Button size="sm" className="h-7 text-xs" onClick={() => reinstateStoreMutation.mutate({ id: store.id })} disabled={reinstateStoreMutation.isPending}>
+                                恢复
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Deposits */}
+        {section === "deposits" && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">保证金管理</h2>
+            {pendingDeposits?.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">暂无待确认保证金</p>
+            ) : (
+              <div className="rounded-xl border border-border/60 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/40">
+                    <tr>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">店铺</th>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">金额</th>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">交易哈希</th>
+                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">状态</th>
+                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {pendingDeposits?.map((dep: any) => (
+                      <tr key={dep.id} className="hover:bg-muted/20 transition-colors">
+                        <td className="p-3 font-medium">{dep.storeName ?? dep.storeId}</td>
+                        <td className="p-3 text-primary font-medium">{dep.amountUsdd} USDD</td>
+                        <td className="p-3 font-mono text-xs text-muted-foreground truncate max-w-32">{dep.paymentTxHash ?? "-"}</td>
+                        <td className="p-3">
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                            dep.status === "confirmed" ? "bg-green-100 text-green-700" :
+                            dep.status === "pending" ? "bg-yellow-100 text-yellow-700" :
+                            "bg-red-100 text-red-700"
+                          }`}>{dep.status}</span>
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center justify-end gap-2">
+                            {dep.status === "pending" && (
+                              <>
+                                <Button size="sm" className="h-7 text-xs" onClick={() => confirmDepositMutation.mutate({ id: dep.deposit.id })} disabled={confirmDepositMutation.isPending}>
+                                  确认收款
+                                </Button>
+                                <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => refundDepositMutation.mutate({ id: dep.deposit.id })} disabled={refundDepositMutation.isPending}>
+                                  拒绝
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Marketplace Config */}
+        {section === "marketplace-config" && (
+          <div className="max-w-md space-y-6">
+            <h2 className="text-lg font-semibold">市场平台配置</h2>
+            <div className="space-y-4 p-5 rounded-xl border border-border/60 bg-card">
+              <div>
+                <Label className="text-xs">平台手续费率（当前：{marketplaceConfig ? (marketplaceConfig.commissionRate * 100).toFixed(1) : "-"}%）</Label>
+                <Input
+                  className="h-8 text-sm mt-1"
+                  placeholder="如 0.05 表示 5%"
+                  value={configForm.commissionRate}
+                  onChange={e => setConfigForm({ ...configForm, commissionRate: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">开店保证金（USDD）（当前：{marketplaceConfig?.depositAmount ?? "-"}）</Label>
+                <Input
+                  className="h-8 text-sm mt-1"
+                  placeholder="如 50"
+                  value={configForm.depositAmount}
+                  onChange={e => setConfigForm({ ...configForm, depositAmount: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">收款钱包地址（USDD TRC-20）</Label>
+                <Input
+                  className="h-8 text-sm mt-1"
+                  placeholder="TRC-20 地址"
+                  value={configForm.depositWalletAddress}
+                  onChange={e => setConfigForm({ ...configForm, depositWalletAddress: e.target.value })}
+                />
+              </div>
+              <Button
+                size="sm"
+                onClick={async () => {
+                  if (configForm.commissionRate) await updateConfigMutation.mutateAsync({ key: "commission_rate", value: configForm.commissionRate });
+                  if (configForm.depositAmount) await updateConfigMutation.mutateAsync({ key: "deposit_amount", value: configForm.depositAmount });
+                  if (configForm.depositWalletAddress) await updateConfigMutation.mutateAsync({ key: "deposit_wallet_address", value: configForm.depositWalletAddress });
+                  if (!configForm.commissionRate && !configForm.depositAmount && !configForm.depositWalletAddress) toast.info("请输入要修改的配置项");
+                }}
+                disabled={updateConfigMutation.isPending}
+              >
+                {updateConfigMutation.isPending ? "保存中..." : "保存配置"}
+              </Button>
+            </div>
           </div>
         )}
       </div>

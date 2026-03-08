@@ -57,6 +57,12 @@ export default function Navbar() {
             <Link href="/products" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               {t("nav.products")}
             </Link>
+            <Link href="/marketplace" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              全球商城
+            </Link>
+            <Link href="/seller" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              开店
+            </Link>
           </nav>
 
           {/* Desktop Search */}
@@ -129,6 +135,9 @@ export default function Navbar() {
                   <DropdownMenuItem asChild>
                     <Link href="/orders">{t("orders.title")}</Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/seller">我的店铺</Link>
+                  </DropdownMenuItem>
                   {user?.role === "admin" && (
                     <>
                       <DropdownMenuSeparator />
@@ -185,6 +194,12 @@ export default function Navbar() {
               </Link>
               <Link href="/products" onClick={() => setMobileOpen(false)} className="px-2 py-1.5 text-sm hover:bg-accent rounded-md">
                 {t("nav.products")}
+              </Link>
+              <Link href="/marketplace" onClick={() => setMobileOpen(false)} className="px-2 py-1.5 text-sm hover:bg-accent rounded-md">
+                全球商城
+              </Link>
+              <Link href="/seller" onClick={() => setMobileOpen(false)} className="px-2 py-1.5 text-sm hover:bg-accent rounded-md">
+                开店
               </Link>
             </nav>
           </div>

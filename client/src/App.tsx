@@ -21,6 +21,10 @@ const OrderDetail = lazy(() => import("./pages/OrderDetail"));
 const Account = lazy(() => import("./pages/Account"));
 const Payment = lazy(() => import("./pages/Payment"));
 const Admin = lazy(() => import("./pages/Admin"));
+const Marketplace = lazy(() => import("./pages/Marketplace"));
+const SellerDashboard = lazy(() => import("./pages/SellerDashboard"));
+const StorePage = lazy(() => import("./pages/StorePage"));
+const StoreProductDetail = lazy(() => import("./pages/StoreProductDetail"));
 
 function PageLoader() {
   return (
@@ -45,6 +49,10 @@ function Router() {
         <Route path="/payment/:orderId" component={Payment} />
         <Route path="/admin" component={Admin} />
         <Route path="/admin/:section" component={Admin} />
+        <Route path="/marketplace" component={Marketplace} />
+        <Route path="/seller" component={SellerDashboard} />
+        <Route path="/store/:slug" component={StorePage} />
+        <Route path="/store/:slug/product/:productSlug" component={StoreProductDetail} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>

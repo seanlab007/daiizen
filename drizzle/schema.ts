@@ -190,3 +190,140 @@ export const chatMessages = mysqlTable("chatMessages", {
 });
 
 export type ChatMessage = typeof chatMessages.$inferSelect;
+
+// ─── Stores (Seller Shops) ────────────────────────────────────────────────────
+
+export const stores = mysqlTable("stores", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  slug: varchar("slug", { length: 128 }).notNull().unique(),
+  name: varchar("name", { length: 128 }).notNull(),
+  description: text("description"),
+  logoUrl: text("logoUrl"),
+  bannerUrl: text("bannerUrl"),
+  contactEmail: varchar("contactEmail", { length: 320 }),
+  contactPhone: varchar("contactPhone", { length: 32 }),
+  country: varchar("country", { length: 64 }),
+  // Status: pending (awaiting admin approval), active, suspended, rejected
+  status: mysqlEnum("status", ["pending", "active", "suspended", "rejected"])
+    .default("pending")
+    .notNull(),
+  // Commission rate override (null = use platform default)
+  commissionRate: decimal("commissionRate", { precision: 5, scale: 4 }), // e.g. 0.0500 = 5%
+  // Total earnings and balance tracking
+  totalEarningsUsdd: decimal("totalEarningsUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
+  pendingBalanceUsdd: decimal("pendingBalanceUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
+  adminNote: text("adminNote"),
+  approvedAt: timestamp("approvedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Store = typeof stores.$inferSelect;
+export type InsertStore = typeof stores.$inferInsert;
+
+// ─── Store Products ───────────────────────────────────────────────────────────
+
+export const storeProducts = mysqlTable("storeProducts", {
+  id: int("id").autoincrement().primaryKey(),
+  storeId: int("storeId").notNull(),
+  categoryId: int("categoryId"),
+  slug: varchar("slug", { length: 128 }).notNull().unique(),
+  name: varchar("name", { length: 256 }).notNull(),
+  description: text("description"),
+  priceUsdd: decimal("priceUsdd", { precision: 18, scale: 6 }).notNull(),
+  originalPriceUsdd: decimal("originalPriceUsdd", { precision: 18, scale: 6 }), // for showing discount
+  stock: int("stock").default(0).notNull(),
+  images: json("images").$type<string[]>(),
+  tags: json("tags").$type<string[]>(),
+  weight: decimal("weight", { precision: 10, scale: 3 }),
+  isActive: int("isActive").default(1).notNull(),
+  isFeatured: int("isFeatured").default(0).notNull(),
+  // External platform link (original source)
+  externalPlatform: mysqlEnum("externalPlatform", [
+    "tiktok", "pinduoduo", "xiaohongshu", "amazon", "shein", "taobao", "jd", "lazada", "shopee", "other"
+  ]),
+  externalUrl: text("externalUrl"),
+  externalProductId: varchar("externalProductId", { length: 256 }),
+  // Sales stats
+  salesCount: int("salesCount").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type StoreProduct = typeof storeProducts.$inferSelect;
+export type InsertStoreProduct = typeof storeProducts.$inferInsert;
+
+// ─── Store Deposits ───────────────────────────────────────────────────────────
+
+export const storeDeposits = mysqlTable("storeDeposits", {
+  id: int("id").autoincrement().primaryKey(),
+  storeId: int("storeId").notNull(),
+  userId: int("userId").notNull(),
+  amountUsdd: decimal("amountUsdd", { precision: 18, scale: 6 }).notNull(),
+  status: mysqlEnum("status", ["pending", "confirmed", "refunded", "forfeited"])
+    .default("pending")
+    .notNull(),
+  paymentMethod: varchar("paymentMethod", { length: 32 }),
+  paymentTxHash: varchar("paymentTxHash", { length: 128 }),
+  confirmedAt: timestamp("confirmedAt"),
+  refundedAt: timestamp("refundedAt"),
+  adminNote: text("adminNote"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type StoreDeposit = typeof storeDeposits.$inferSelect;
+export type InsertStoreDeposit = typeof storeDeposits.$inferInsert;
+
+// ─── Platform Commission Config ───────────────────────────────────────────────
+
+export const platformConfig = mysqlTable("platformConfig", {
+  id: int("id").autoincrement().primaryKey(),
+  key: varchar("key", { length: 64 }).notNull().unique(),
+  value: text("value").notNull(),
+  description: text("description"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PlatformConfig = typeof platformConfig.$inferSelect;
+
+// ─── Commission Records ───────────────────────────────────────────────────────
+
+export const commissionRecords = mysqlTable("commissionRecords", {
+  id: int("id").autoincrement().primaryKey(),
+  storeId: int("storeId").notNull(),
+  orderId: int("orderId").notNull(),
+  orderItemId: int("orderItemId").notNull(),
+  saleAmountUsdd: decimal("saleAmountUsdd", { precision: 18, scale: 6 }).notNull(),
+  commissionRate: decimal("commissionRate", { precision: 5, scale: 4 }).notNull(),
+  commissionAmountUsdd: decimal("commissionAmountUsdd", { precision: 18, scale: 6 }).notNull(),
+  sellerEarningsUsdd: decimal("sellerEarningsUsdd", { precision: 18, scale: 6 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type CommissionRecord = typeof commissionRecords.$inferSelect;
+export type InsertCommissionRecord = typeof commissionRecords.$inferInsert;
+
+// ─── Store Orders ─────────────────────────────────────────────────────────────
+// Links platform orders to specific stores (for multi-store cart support)
+
+export const storeOrders = mysqlTable("storeOrders", {
+  id: int("id").autoincrement().primaryKey(),
+  orderId: int("orderId").notNull(),
+  storeId: int("storeId").notNull(),
+  subtotalUsdd: decimal("subtotalUsdd", { precision: 18, scale: 6 }).notNull(),
+  commissionUsdd: decimal("commissionUsdd", { precision: 18, scale: 6 }).notNull(),
+  sellerEarningsUsdd: decimal("sellerEarningsUsdd", { precision: 18, scale: 6 }).notNull(),
+  status: mysqlEnum("status", ["pending_payment", "paid", "shipped", "completed", "cancelled"])
+    .default("pending_payment")
+    .notNull(),
+  trackingNumber: varchar("trackingNumber", { length: 128 }),
+  shippedAt: timestamp("shippedAt"),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type StoreOrder = typeof storeOrders.$inferSelect;
+export type InsertStoreOrder = typeof storeOrders.$inferInsert;

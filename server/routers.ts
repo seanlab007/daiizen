@@ -1,4 +1,5 @@
 import { COOKIE_NAME } from "@shared/const";
+import { storeRouter } from "./routers/store";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
@@ -46,6 +47,7 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 
 export const appRouter = router({
   system: systemRouter,
+  store: storeRouter,
 
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
