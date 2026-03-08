@@ -303,3 +303,10 @@
 - [x] Admin page: fix table overflow on mobile (horizontal scroll with overflow-x-auto + min-w)
 - [x] WalletPage: card-based layout (already mobile-friendly)
 - [x] Navbar: notification bell works on mobile (already implemented)
+
+## Round 13: Strategic/Emergency Supply Products
+
+- [x] Search for product images (antibiotics, flashlights, first aid, emergency supplies)
+- [x] Add "Emergency Supplies" category to database
+- [x] Seed 16 strategic supply products with CDN images and multilingual names
+- [x] Verify products appear in Marketplace
