@@ -172,3 +172,33 @@
 - [x] Frontend: Sign up page at /signup
 - [x] Frontend: Replace Manus OAuth "Sign In" button with new auth modal
 - [x] Vitest tests for all auth endpoints (71 tests passing)
+
+## Round 7: Google OAuth Production + USDD Payment + Seller Withdrawal
+
+### Google OAuth Production Setup
+- [ ] Create /privacy page (Privacy Policy)
+- [ ] Create /terms page (Terms of Service)
+- [ ] Update OAuth consent screen with app name, logo, privacy/terms URLs
+- [ ] Guide: submit Google OAuth app for production verification
+
+### USDD Payment Integration (Dark Matter Bank)
+- [ ] Research Dark Matter Bank USDD API endpoints
+- [ ] DB schema: usddTransactions table (userId, type, amount, txHash, status)
+- [ ] USDD wallet display: show user's USDD balance on account page
+- [ ] USDD deposit flow: generate TRC-20 deposit address, monitor incoming transactions
+- [ ] USDD checkout: pay orders with USDD balance (deduct from user balance)
+- [ ] USDD exchange rate display: real-time USDD/USD rate on checkout
+- [ ] Admin: USDD transaction management panel
+
+### Seller Withdrawal System
+- [ ] DB schema: withdrawalRequests table (sellerId, amount, walletAddress, status, txHash)
+- [ ] Seller: earnings summary (available balance, pending, withdrawn)
+- [ ] Seller: withdrawal request form (USDD wallet address + amount)
+- [ ] Seller: withdrawal history with status tracking
+- [ ] Admin: withdrawal request review panel (approve/reject)
+- [ ] Admin: mark withdrawal as paid (enter TRC-20 txHash)
+- [ ] Notification: seller notified when withdrawal approved/rejected/paid
+- [ ] Vitest tests for withdrawal flow
+
+## Bug Fix: Navigation Language Mismatch
+- [x] Fix hardcoded Chinese nav items (全球商城, 开店入驻, 推荐奖励) not translating in English mode
