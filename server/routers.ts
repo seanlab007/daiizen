@@ -39,6 +39,7 @@ import {
   saveChatMessage,
   getChatHistory,
   getAllOrders,
+  creditSellerEarningsForOrder,
 } from "./db";
 import { invokeLLM } from "./_core/llm";
 import { notifyOwner } from "./_core/notification";
@@ -292,6 +293,10 @@ Key facts: USDD is a stablecoin pegged to USD. Orders typically ship in 7-21 day
       )
       .mutation(async ({ input }) => {
         const order = await updateOrderStatus(input.orderId, input.status);
+        // Auto-settle seller earnings when order is completed
+        if (input.status === "completed") {
+          await creditSellerEarningsForOrder(input.orderId).catch(() => {});
+        }
         await notifyOwner({
           title: `Order Status Updated`,
           content: `Order #${order.orderNumber} status changed to ${input.status}`,

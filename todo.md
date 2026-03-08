@@ -248,3 +248,11 @@
 - [x] Frontend: Payment success page shows USDD deduction confirmation (toast + redirect to order)
 - [x] Admin: Order list shows payment method (USDD balance vs manual)
 - [x] Vitest tests for wallet.payWithBalance procedure (71 tests passing)
+
+## Round 9: Google OAuth Prod + Auto-Settlement + QR Code
+- [ ] Google OAuth: Add privacy policy and terms URLs to OAuth consent screen (guide user)
+- [x] Auto-settle seller earnings when admin marks order as "completed"
+- [x] Admin: updateOrderStatus triggers creditSellerEarningsForOrder on "completed"
+- [x] Wallet page: show TRC-20 deposit address as QR code (using qrcode.react)
+- [x] Wallet page: copy-to-clipboard button for deposit address
+- [x] Wallet page: show network label (TRC-20 / TRON) next to deposit address
