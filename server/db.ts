@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, like, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, products, categories, cartItems, orders, orderItems, addresses, exchangeRates, chatMessages } from "../drizzle/schema";
 import { ENV } from "./_core/env";
@@ -856,4 +856,180 @@ export async function creditSellerEarningsForOrder(orderId: number) {
       }).where(eq(stores.id, storeId));
     }
   }
+}
+
+
+// ─── Product Reviews ──────────────────────────────────────────────────────────
+
+export async function submitReview(data: {
+  orderId: number;
+  orderItemId: number;
+  userId: number;
+  productId?: number | null;
+  storeProductId?: number | null;
+  storeId?: number | null;
+  rating: number;
+  comment?: string | null;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { productReviews } = await import("../drizzle/schema");
+  // Check if review already exists for this order item
+  const [existing] = await db.select().from(productReviews)
+    .where(eq(productReviews.orderItemId, data.orderItemId))
+    .limit(1);
+  if (existing) throw new Error("Review already submitted for this item");
+  await db.insert(productReviews).values({
+    orderId: data.orderId,
+    orderItemId: data.orderItemId,
+    userId: data.userId,
+    productId: data.productId ?? null,
+    storeProductId: data.storeProductId ?? null,
+    storeId: data.storeId ?? null,
+    rating: data.rating,
+    comment: data.comment ?? null,
+    isVerifiedPurchase: 1,
+  });
+}
+
+export async function getReviewsByProduct(storeProductId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { productReviews } = await import("../drizzle/schema");
+  return db.select().from(productReviews)
+    .where(eq(productReviews.storeProductId, storeProductId))
+    .orderBy(desc(productReviews.createdAt))
+    .limit(50);
+}
+
+export async function getReviewsByStore(storeId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { productReviews } = await import("../drizzle/schema");
+  return db.select().from(productReviews)
+    .where(eq(productReviews.storeId, storeId))
+    .orderBy(desc(productReviews.createdAt))
+    .limit(100);
+}
+
+export async function getMyReviews(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { productReviews } = await import("../drizzle/schema");
+  return db.select().from(productReviews)
+    .where(eq(productReviews.userId, userId))
+    .orderBy(desc(productReviews.createdAt));
+}
+
+export async function getReviewableItems(userId: number) {
+  // Returns order items from completed orders that haven't been reviewed yet
+  const db = await getDb();
+  if (!db) return [];
+  const { productReviews } = await import("../drizzle/schema");
+  const completedOrders = await db.select().from(orders)
+    .where(and(eq(orders.userId, userId), eq(orders.status, "completed")));
+  if (!completedOrders.length) return [];
+  const orderIds = completedOrders.map(o => o.id);
+  const items = await db.select().from(orderItems).where(inArray(orderItems.orderId, orderIds));
+  const reviewedItemIds = (await db.select({ orderItemId: productReviews.orderItemId })
+    .from(productReviews)
+    .where(eq(productReviews.userId, userId))).map(r => r.orderItemId);
+  return items.filter(item => !reviewedItemIds.includes(item.id)).map(item => ({
+    ...item,
+    order: completedOrders.find(o => o.id === item.orderId),
+  }));
+}
+
+// ─── Referral Reward Auto-Payout ─────────────────────────────────────────────
+
+export async function processReferralRewardsForOrder(orderId: number, buyerUserId: number) {
+  const db = await getDb();
+  if (!db) return;
+  const { referralRelations, referralRewards, referralCodes, usddWallets, usddTransactions } = await import("../drizzle/schema");
+
+  // Check if buyer has a referral relation
+  const [relation] = await db.select().from(referralRelations)
+    .where(eq(referralRelations.userId, buyerUserId))
+    .limit(1);
+  if (!relation) return;
+
+  // Only pay on first purchase
+  if (relation.firstPurchaseDone) return;
+
+  // Get the order total
+  const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+  if (!order || order.status !== "completed") return;
+
+  const orderAmount = parseFloat(order.totalUsdd);
+  const rewardRates = [0.05, 0.02, 0.01]; // L1=5%, L2=2%, L3=1%
+  const referrers = [
+    relation.referredByUserId,
+    relation.l2UserId,
+    relation.l3UserId,
+  ];
+
+  for (let i = 0; i < referrers.length; i++) {
+    const referrerId = referrers[i];
+    if (!referrerId) continue;
+    const rate = rewardRates[i];
+    const rewardAmount = orderAmount * rate;
+    if (rewardAmount < 0.000001) continue;
+
+    // Insert reward record
+    await db.insert(referralRewards).values({
+      beneficiaryUserId: referrerId,
+      referredUserId: buyerUserId,
+      orderId,
+      level: i + 1,
+      orderAmountUsdd: orderAmount.toFixed(6),
+      rewardRate: rate.toFixed(4),
+      rewardAmountUsdd: rewardAmount.toFixed(6),
+      status: "paid",
+      paidAt: new Date(),
+    });
+
+    // Credit referrer's USDD wallet
+    const [wallet] = await db.select().from(usddWallets).where(eq(usddWallets.userId, referrerId)).limit(1);
+    if (wallet) {
+      const newBalance = parseFloat(wallet.balanceUsdd) + rewardAmount;
+      await db.update(usddWallets).set({
+        balanceUsdd: newBalance.toFixed(6),
+        totalDepositedUsdd: (parseFloat(wallet.totalDepositedUsdd) + rewardAmount).toFixed(6),
+      }).where(eq(usddWallets.userId, referrerId));
+      await db.insert(usddTransactions).values({
+        userId: referrerId,
+        type: "reward",
+        amountUsdd: rewardAmount.toFixed(6),
+        balanceAfterUsdd: newBalance.toFixed(6),
+        orderId,
+        status: "confirmed",
+        note: `Referral reward L${i + 1} from order #${order.orderNumber}`,
+        confirmedAt: new Date(),
+      });
+    } else {
+      // Create wallet if doesn't exist
+      await db.insert(usddWallets).values({
+        userId: referrerId,
+        balanceUsdd: rewardAmount.toFixed(6),
+        totalDepositedUsdd: rewardAmount.toFixed(6),
+        totalSpentUsdd: "0",
+      }).onDuplicateKeyUpdate({
+        set: {
+          balanceUsdd: rewardAmount.toFixed(6),
+          totalDepositedUsdd: rewardAmount.toFixed(6),
+        }
+      });
+    }
+
+    // Update referral code total rewards
+    await db.update(referralCodes).set({
+      totalRewardsUsdd: sql`totalRewardsUsdd + ${rewardAmount.toFixed(6)}`,
+    }).where(eq(referralCodes.userId, referrerId));
+  }
+
+  // Mark first purchase as done
+  await db.update(referralRelations).set({
+    firstPurchaseDone: 1,
+    firstPurchaseAt: new Date(),
+  }).where(eq(referralRelations.userId, buyerUserId));
 }

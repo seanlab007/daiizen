@@ -145,6 +145,9 @@ export const storeRouter = router({
       search: z.string().optional(),
       categoryId: z.number().optional(),
       platform: z.string().optional(),
+      minPrice: z.number().optional(),
+      maxPrice: z.number().optional(),
+      sortBy: z.enum(["newest", "popular", "price_asc", "price_desc"]).optional(),
       page: z.number().default(1),
       limit: z.number().default(20),
     }))

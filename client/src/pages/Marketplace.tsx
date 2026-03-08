@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Store, Package } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, Store, Package, SlidersHorizontal, X } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
 
 const PLATFORM_LABELS_KEY: Record<string, string> = {
   tiktok: "TikTok",
@@ -132,10 +135,22 @@ export default function Marketplace() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [platformFilter, setPlatformFilter] = useState<string>("");
+  const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
+  const [sortBy, setSortBy] = useState<"newest" | "popular" | "price_asc" | "price_desc">("popular");
+  const [minPrice, setMinPrice] = useState<string>("");
+  const [maxPrice, setMaxPrice] = useState<string>("");
+  const [appliedMinPrice, setAppliedMinPrice] = useState<number | undefined>(undefined);
+  const [appliedMaxPrice, setAppliedMaxPrice] = useState<number | undefined>(undefined);
+
+  const { data: categories } = trpc.categories.list.useQuery();
 
   const products = trpc.store.marketplace.useQuery({
     search: debouncedSearch || undefined,
     platform: platformFilter || undefined,
+    categoryId,
+    minPrice: appliedMinPrice,
+    maxPrice: appliedMaxPrice,
+    sortBy,
     page,
     limit: 20,
   });
@@ -152,6 +167,20 @@ export default function Marketplace() {
     setTimeout(() => setDebouncedSearch(value), 400);
   };
 
+  const applyPriceFilter = () => {
+    setAppliedMinPrice(minPrice ? parseFloat(minPrice) : undefined);
+    setAppliedMaxPrice(maxPrice ? parseFloat(maxPrice) : undefined);
+    setPage(1);
+  };
+
+  const clearPriceFilter = () => {
+    setMinPrice("");
+    setMaxPrice("");
+    setAppliedMinPrice(undefined);
+    setAppliedMaxPrice(undefined);
+    setPage(1);
+  };
+
   const platforms = [
     { value: "", label: t("marketplace.platform.all") },
     { value: "tiktok", label: "TikTok" },
@@ -164,6 +193,7 @@ export default function Marketplace() {
   ];
 
   const totalPages = Math.ceil((products.data?.total ?? 0) / 20);
+  const hasPriceFilter = appliedMinPrice !== undefined || appliedMaxPrice !== undefined;
 
   return (
     <div className="container py-6 space-y-6">
@@ -197,18 +227,123 @@ export default function Marketplace() {
         </TabsList>
 
         <TabsContent value="products" className="space-y-4 mt-4">
-          <div className="flex gap-2 flex-wrap">
-            {platforms.map((p) => (
-              <Button
-                key={p.value}
-                variant={platformFilter === p.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => { setPlatformFilter(p.value); setPage(1); }}
-              >
-                {p.label}
-              </Button>
-            ))}
+          {/* Filters Row */}
+          <div className="flex flex-wrap gap-2 items-center">
+            {/* Platform filter */}
+            <div className="flex gap-1.5 flex-wrap">
+              {platforms.map((p) => (
+                <Button
+                  key={p.value}
+                  variant={platformFilter === p.value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => { setPlatformFilter(p.value); setPage(1); }}
+                >
+                  {p.label}
+                </Button>
+              ))}
+            </div>
+
+            <div className="flex gap-2 ml-auto items-center">
+              {/* Category filter */}
+              {categories && categories.length > 0 && (
+                <Select
+                  value={categoryId?.toString() ?? "all"}
+                  onValueChange={(v) => { setCategoryId(v === "all" ? undefined : parseInt(v)); setPage(1); }}
+                >
+                  <SelectTrigger className="h-8 text-sm w-36">
+                    <SelectValue placeholder={t("marketplace.category")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("marketplace.all_categories")}</SelectItem>
+                    {categories.map((cat: any) => (
+                      <SelectItem key={cat.id} value={cat.id.toString()}>{cat.nameEn}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {/* Sort */}
+              <Select value={sortBy} onValueChange={(v) => { setSortBy(v as any); setPage(1); }}>
+                <SelectTrigger className="h-8 text-sm w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="popular">{t("marketplace.sort.popular")}</SelectItem>
+                  <SelectItem value="newest">{t("marketplace.sort.newest")}</SelectItem>
+                  <SelectItem value="price_asc">{t("marketplace.sort.price_asc")}</SelectItem>
+                  <SelectItem value="price_desc">{t("marketplace.sort.price_desc")}</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Price range */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant={hasPriceFilter ? "default" : "outline"} size="sm" className="gap-1.5 h-8">
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    {hasPriceFilter
+                      ? `${appliedMinPrice ?? 0}–${appliedMaxPrice ?? "∞"} USDD`
+                      : t("marketplace.price_range")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-4 space-y-3">
+                  <p className="text-sm font-medium">{t("marketplace.price_range")}</p>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1">
+                      <Label className="text-xs text-muted-foreground">{t("marketplace.min_price")}</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={minPrice}
+                        onChange={(e) => setMinPrice(e.target.value)}
+                        className="h-8 text-sm mt-1"
+                      />
+                    </div>
+                    <span className="text-muted-foreground mt-5">–</span>
+                    <div className="flex-1">
+                      <Label className="text-xs text-muted-foreground">{t("marketplace.max_price")}</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="∞"
+                        value={maxPrice}
+                        onChange={(e) => setMaxPrice(e.target.value)}
+                        className="h-8 text-sm mt-1"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" className="flex-1" onClick={applyPriceFilter}>
+                      {t("marketplace.apply")}
+                    </Button>
+                    {hasPriceFilter && (
+                      <Button size="sm" variant="outline" onClick={clearPriceFilter}>
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
+
+          {/* Active filter badges */}
+          {(categoryId || hasPriceFilter) && (
+            <div className="flex gap-2 flex-wrap">
+              {categoryId && (
+                <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => { setCategoryId(undefined); setPage(1); }}>
+                  {categories?.find((c: any) => c.id === categoryId)?.nameEn}
+                  <X className="w-3 h-3" />
+                </Badge>
+              )}
+              {hasPriceFilter && (
+                <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={clearPriceFilter}>
+                  {appliedMinPrice ?? 0}–{appliedMaxPrice ?? "∞"} USDD
+                  <X className="w-3 h-3" />
+                </Badge>
+              )}
+            </div>
+          )}
 
           {products.isLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">

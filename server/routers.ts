@@ -5,6 +5,7 @@ import { paymentRouter } from "./routers/payment";
 import { bulkImportRouter } from "./routers/bulkImport";
 import { walletRouter } from "./routers/wallet";
 import { withdrawalRouter } from "./routers/withdrawal";
+import { reviewsRouter } from "./routers/reviews";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
@@ -40,6 +41,7 @@ import {
   getChatHistory,
   getAllOrders,
   creditSellerEarningsForOrder,
+  processReferralRewardsForOrder,
 } from "./db";
 import { invokeLLM } from "./_core/llm";
 import { notifyOwner } from "./_core/notification";
@@ -59,6 +61,7 @@ export const appRouter = router({
   bulkImport: bulkImportRouter,
   wallet: walletRouter,
   withdrawal: withdrawalRouter,
+  reviews: reviewsRouter,
 
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
@@ -296,6 +299,8 @@ Key facts: USDD is a stablecoin pegged to USD. Orders typically ship in 7-21 day
         // Auto-settle seller earnings when order is completed
         if (input.status === "completed") {
           await creditSellerEarningsForOrder(input.orderId).catch(() => {});
+          // Process referral rewards for the buyer
+          await processReferralRewardsForOrder(input.orderId, order.userId).catch(() => {});
         }
         await notifyOwner({
           title: `Order Status Updated`,

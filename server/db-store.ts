@@ -232,16 +232,27 @@ export async function getMarketplaceProducts(opts: {
   search?: string;
   categoryId?: number;
   platform?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sortBy?: "newest" | "popular" | "price_asc" | "price_desc";
   page?: number;
   limit?: number;
 }) {
-  const { search, categoryId, platform, page = 1, limit = 20 } = opts;
+  const { search, categoryId, platform, minPrice, maxPrice, sortBy = "popular", page = 1, limit = 20 } = opts;
   const offset = (page - 1) * limit;
 
   const conditions: any[] = [eq(storeProducts.isActive, 1)];
   if (search) conditions.push(like(storeProducts.name, `%${search}%`));
   if (categoryId) conditions.push(eq(storeProducts.categoryId, categoryId));
   if (platform) conditions.push(eq(storeProducts.externalPlatform, platform as any));
+  if (minPrice !== undefined) conditions.push(sql`CAST(${storeProducts.priceUsdd} AS DECIMAL(18,6)) >= ${minPrice}`);
+  if (maxPrice !== undefined) conditions.push(sql`CAST(${storeProducts.priceUsdd} AS DECIMAL(18,6)) <= ${maxPrice}`);
+
+  const orderByClause =
+    sortBy === "newest" ? [desc(storeProducts.createdAt)] :
+    sortBy === "price_asc" ? [sql`CAST(${storeProducts.priceUsdd} AS DECIMAL(18,6)) ASC`] :
+    sortBy === "price_desc" ? [sql`CAST(${storeProducts.priceUsdd} AS DECIMAL(18,6)) DESC`] :
+    [desc(storeProducts.salesCount), desc(storeProducts.createdAt)];
 
   const [rows, [{ count }]] = await Promise.all([
     (await getDb())
@@ -257,7 +268,7 @@ export async function getMarketplaceProducts(opts: {
       .from(storeProducts)
       .innerJoin(stores, and(eq(storeProducts.storeId, stores.id), eq(stores.status, "active")))
       .where(and(...conditions))
-      .orderBy(desc(storeProducts.salesCount), desc(storeProducts.createdAt))
+      .orderBy(...orderByClause)
       .limit(limit)
       .offset(offset),
     (await getDb())

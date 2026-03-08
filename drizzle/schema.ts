@@ -544,3 +544,24 @@ export const withdrawalRequests = mysqlTable("withdrawalRequests", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type WithdrawalRequest = typeof withdrawalRequests.$inferSelect;
+
+// ─── Product Reviews ──────────────────────────────────────────────────────────
+// Buyers can leave a review after their order is completed
+
+export const productReviews = mysqlTable("productReviews", {
+  id: int("id").autoincrement().primaryKey(),
+  orderId: int("orderId").notNull(),
+  orderItemId: int("orderItemId").notNull(),
+  userId: int("userId").notNull(),
+  productId: int("productId"), // platform product (nullable)
+  storeProductId: int("storeProductId"), // store product (nullable)
+  storeId: int("storeId"), // which store the product belongs to
+  rating: int("rating").notNull(), // 1-5
+  comment: text("comment"),
+  images: json("images").$type<string[]>(),
+  isVerifiedPurchase: int("isVerifiedPurchase").default(1).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type ProductReview = typeof productReviews.$inferSelect;
+export type InsertProductReview = typeof productReviews.$inferInsert;

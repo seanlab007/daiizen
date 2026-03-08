@@ -256,3 +256,18 @@
 - [x] Wallet page: show TRC-20 deposit address as QR code (using qrcode.react)
 - [x] Wallet page: copy-to-clipboard button for deposit address
 - [x] Wallet page: show network label (TRC-20 / TRON) next to deposit address
+
+## Round 10: Reviews + Referral Rewards + Marketplace Filters
+- [x] DB: productReviews table (orderId, userId, productId, rating 1-5, comment, createdAt)
+- [x] tRPC: reviews.submit (after order completed), reviews.getByProduct, reviews.getMyReviews
+- [x] Frontend: OrderDetail page - show "Leave a Review" button after order completed
+- [x] Frontend: Review form (star rating + text comment)
+- [x] Frontend: Product page - show average rating + review list
+- [x] Frontend: Store page - show seller average rating
+- [x] DB: referralRewards table (referrerId, refereeId, orderId, amountUsdd, status)
+- [x] tRPC: auto-credit referrer USDD wallet on referee's first completed order
+- [x] Frontend: ReferralPage - show earned rewards history
+- [x] Marketplace: category filter sidebar/chips
+- [x] Marketplace: price range filter (min/max USDD)
+- [x] Marketplace: sort options (newest, price low-high, price high-low, most popular)
+- [x] Marketplace: active filter chips display with clear button
