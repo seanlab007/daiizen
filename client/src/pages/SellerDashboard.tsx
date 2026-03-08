@@ -597,13 +597,14 @@ export default function SellerDashboard() {
               <p className="text-2xl font-bold">{stats.data.orderCount}</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="border-green-500/30 bg-green-500/5">
             <CardContent className="pt-4">
               <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
                 <DollarSign className="w-4 h-4" /> 总收益
               </div>
-              <p className="text-2xl font-bold">{stats.data.totalEarnings.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-green-600">{stats.data.totalEarnings.toFixed(2)}</p>
               <p className="text-xs text-muted-foreground">USDD</p>
+              <Link href="/seller/withdrawal" className="text-xs text-primary hover:underline mt-1 block">💸 申请提现 →</Link>
             </CardContent>
           </Card>
           <Card>

@@ -166,6 +166,9 @@ export default function Navbar() {
                   <DropdownMenuItem asChild>
                     <Link href="/referral">{t("nav.referral")}</Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/wallet">💰 USDD Wallet</Link>
+                  </DropdownMenuItem>
                   {user?.role === "admin" && (
                     <>
                       <DropdownMenuSeparator />

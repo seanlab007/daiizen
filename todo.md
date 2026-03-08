@@ -176,8 +176,8 @@
 ## Round 7: Google OAuth Production + USDD Payment + Seller Withdrawal
 
 ### Google OAuth Production Setup
-- [ ] Create /privacy page (Privacy Policy)
-- [ ] Create /terms page (Terms of Service)
+- [x] Create /privacy page (Privacy Policy)
+- [x] Create /terms page (Terms of Service)
 - [ ] Update OAuth consent screen with app name, logo, privacy/terms URLs
 - [ ] Guide: submit Google OAuth app for production verification
 
@@ -202,3 +202,40 @@
 
 ## Bug Fix: Navigation Language Mismatch
 - [x] Fix hardcoded Chinese nav items (全球商城, 开店入驻, 推荐奖励) not translating in English mode
+
+## Round 7: Full Translation + USDD Payment + Seller Withdrawal
+
+### Full-Site Translation Fix (Scan all pages)
+- [x] Scan and fix hardcoded Chinese in Marketplace.tsx
+- [x] Scan and fix hardcoded Chinese in ReferralPage.tsx
+- [x] Scan and fix hardcoded Chinese in InfluencerOnboarding.tsx
+- [x] Scan and fix hardcoded Chinese in SupplyChainOnboarding.tsx
+- [ ] Scan and fix hardcoded Chinese in SellerDashboard/Store pages
+- [ ] Scan and fix hardcoded Chinese in Admin pages
+- [ ] Scan and fix hardcoded Chinese in all remaining pages
+
+### Add Chinese (ZH) Language
+- [x] Add "zh" to LANGUAGES list in LanguageContext.tsx
+- [x] Add full Chinese translations for all keys
+- [x] Test language switcher shows 中文 option
+
+### USDD Payment Integration
+- [x] DB schema: usddWallets table (userId, balance, depositAddress)
+- [x] DB schema: usddTransactions table (userId, type, amount, txHash, status, note)
+- [x] USDD wallet page: show balance, deposit address, transaction history
+- [x] Deposit flow: manual TRC-20 deposit with screenshot upload + admin confirmation
+- [ ] Pay with USDD balance: deduct balance on order placement (future)
+- [x] Admin: USDD deposit review panel (confirm/reject deposits)
+- [x] tRPC procedures: wallet.getMyWallet, wallet.getMyTransactions, wallet.submitDeposit, wallet.adminConfirmDeposit, wallet.adminRejectDeposit
+- [ ] Vitest tests for USDD wallet procedures
+
+### Seller Withdrawal System
+- [x] DB schema: withdrawalRequests table (storeId, userId, amount, walletAddress, status, txHash)
+- [ ] Seller: earnings summary widget (available, pending, total withdrawn)
+- [ ] Seller: withdrawal request form (TRC-20 wallet + amount)
+- [x] Seller: withdrawal history page (/seller/withdrawal)
+- [x] Admin: withdrawal review panel (approve/reject with reason)
+- [x] Admin: mark as paid (enter TRC-20 txHash)
+- [x] Notification: admin notified on new withdrawal request
+- [x] tRPC procedures: withdrawal.requestWithdrawal, withdrawal.getMyWithdrawals, withdrawal.adminGetAll, withdrawal.adminApprove, withdrawal.adminReject, withdrawal.adminMarkPaid
+- [ ] Vitest tests for withdrawal procedures

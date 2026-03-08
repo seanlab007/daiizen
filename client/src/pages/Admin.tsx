@@ -9,7 +9,7 @@ import { Package, ShoppingBag, BarChart3, Plus, Pencil, Trash2, Sparkles, Refres
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 
-type Section = "dashboard" | "products" | "orders" | "categories" | "rates" | "stores" | "deposits" | "marketplace-config" | "payment-config";
+type Section = "dashboard" | "products" | "orders" | "categories" | "rates" | "stores" | "deposits" | "marketplace-config" | "payment-config" | "usdd-deposits" | "usdd-withdrawals";
 
 const STATUS_COLORS: Record<string, string> = {
   pending_payment: "text-amber-600",
@@ -37,6 +37,14 @@ export default function Admin() {
   const { data: pendingStores, refetch: refetchStores } = trpc.store.adminListStores.useQuery({ status: "pending", page: 1, limit: 50 }, { enabled: section === "stores" && isAuthenticated && user?.role === "admin" });
   const { data: allStores } = trpc.store.adminListStores.useQuery({ page: 1, limit: 50 }, { enabled: section === "stores" && isAuthenticated && user?.role === "admin" });
   const { data: pendingDeposits, refetch: refetchDeposits } = trpc.store.adminListDeposits.useQuery({ status: "pending", page: 1, limit: 50 }, { enabled: section === "deposits" && isAuthenticated && user?.role === "admin" });
+  const { data: pendingUsddDeposits, refetch: refetchUsddDeposits } = trpc.wallet.adminGetPendingDeposits.useQuery(undefined, { enabled: section === "usdd-deposits" && isAuthenticated && user?.role === "admin" });
+  const { data: allWithdrawals, refetch: refetchWithdrawals } = trpc.withdrawal.adminGetAll.useQuery({ status: undefined }, { enabled: section === "usdd-withdrawals" && isAuthenticated && user?.role === "admin" });
+  const confirmUsddDepositMutation = trpc.wallet.adminConfirmDeposit.useMutation({ onSuccess: () => { refetchUsddDeposits(); toast.success("充值已确认，余额已更新"); } });
+  const rejectUsddDepositMutation = trpc.wallet.adminRejectDeposit.useMutation({ onSuccess: () => { refetchUsddDeposits(); toast.success("充值已拒绝"); } });
+  const approveWithdrawalMutation = trpc.withdrawal.adminApprove.useMutation({ onSuccess: () => { refetchWithdrawals(); toast.success("提现已批准"); } });
+  const rejectWithdrawalMutation = trpc.withdrawal.adminReject.useMutation({ onSuccess: () => { refetchWithdrawals(); toast.success("提现已拒绝，余额已退回"); } });
+  const [markPaidForm, setMarkPaidForm] = useState<{ id: number; txHash: string } | null>(null);
+  const markPaidMutation = trpc.withdrawal.adminMarkPaid.useMutation({ onSuccess: () => { refetchWithdrawals(); setMarkPaidForm(null); toast.success("已标记为已支付"); } });
   const { data: marketplaceConfig, refetch: refetchConfig } = trpc.store.getConfig.useQuery(undefined, { enabled: section === "marketplace-config" && isAuthenticated && user?.role === "admin" });
   const [configForm, setConfigForm] = useState({ commissionRate: "", depositAmount: "", depositWalletAddress: "" });
   const [paymentForm, setPaymentForm] = useState({ method: "alipay", accountName: "", accountNumber: "", qrCodeUrl: "", isEnabled: true });
@@ -78,6 +86,8 @@ export default function Admin() {
     { id: "deposits", label: "保证金", icon: DollarSign },
     { id: "marketplace-config", label: "市场配置", icon: Settings },
     { id: "payment-config", label: "收款配置", icon: CreditCard },
+    { id: "usdd-deposits", label: "USDD充值审核", icon: DollarSign },
+    { id: "usdd-withdrawals", label: "卖家提现", icon: Banknote },
   ];
 
   return (
@@ -540,6 +550,116 @@ export default function Admin() {
             </div>
           </div>
         )}
+        {/* USDD Deposit Review */}
+        {section === "usdd-deposits" && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">USDD 充值审核</h2>
+            <p className="text-sm text-muted-foreground">用户提交充值申请后需要管理员手动确认，确认后余额自动更新。</p>
+            {!pendingUsddDeposits || pendingUsddDeposits.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <div className="text-4xl mb-2">✅</div>
+                <p>暂无待审核充值申请</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {pendingUsddDeposits.map((tx: any) => (
+                  <div key={tx.id} className="p-4 border rounded-xl bg-card space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="font-bold text-lg">{parseFloat(tx.amountUsdd).toFixed(2)} USDD</div>
+                        <div className="text-sm text-muted-foreground">User ID: {tx.userId}</div>
+                        <div className="text-xs text-muted-foreground">{new Date(tx.createdAt).toLocaleString()}</div>
+                        {tx.txHash && <div className="text-xs font-mono text-blue-500 mt-1">TxHash: {tx.txHash}</div>}
+                        {tx.note && <div className="text-xs text-muted-foreground mt-1">Note: {tx.note}</div>}
+                      </div>
+                      {tx.depositScreenshotUrl && (
+                        <a href={tx.depositScreenshotUrl} target="_blank" rel="noopener noreferrer">
+                          <img src={tx.depositScreenshotUrl} alt="screenshot" className="w-16 h-16 object-cover rounded border" />
+                        </a>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => confirmUsddDepositMutation.mutate({ txId: tx.id })} disabled={confirmUsddDepositMutation.isPending}>
+                        ✓ 确认充值
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => rejectUsddDepositMutation.mutate({ txId: tx.id, adminNote: "拒绝" })} disabled={rejectUsddDepositMutation.isPending}>
+                        ✗ 拒绝
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* USDD Withdrawal Management */}
+        {section === "usdd-withdrawals" && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">卖家提现管理</h2>
+            {!allWithdrawals || allWithdrawals.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <div className="text-4xl mb-2">📋</div>
+                <p>暂无提现申请</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {allWithdrawals.map((req: any) => (
+                  <div key={req.id} className="p-4 border rounded-xl bg-card space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="font-bold text-lg">{parseFloat(req.amountUsdd).toFixed(2)} USDD</div>
+                        <div className="text-xs font-mono text-muted-foreground mt-0.5">{req.walletAddress}</div>
+                        <div className="text-xs text-muted-foreground">Store ID: {req.storeId} | {new Date(req.createdAt).toLocaleString()}</div>
+                        {req.txHash && <div className="text-xs font-mono text-green-600 mt-1">TxHash: {req.txHash}</div>}
+                        {req.rejectionReason && <div className="text-xs text-red-500 mt-1">拒绝原因: {req.rejectionReason}</div>}
+                      </div>
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                        req.status === "paid" ? "bg-green-100 text-green-700" :
+                        req.status === "approved" ? "bg-blue-100 text-blue-700" :
+                        req.status === "pending" ? "bg-amber-100 text-amber-700" :
+                        "bg-red-100 text-red-700"
+                      }`}>{req.status}</span>
+                    </div>
+                    {req.status === "pending" && (
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => approveWithdrawalMutation.mutate({ id: req.id })} disabled={approveWithdrawalMutation.isPending}>
+                          ✓ 批准
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => rejectWithdrawalMutation.mutate({ id: req.id, rejectionReason: "管理员拒绝" })} disabled={rejectWithdrawalMutation.isPending}>
+                          ✗ 拒绝
+                        </Button>
+                      </div>
+                    )}
+                    {req.status === "approved" && (
+                      <div className="flex gap-2 items-center">
+                        {markPaidForm !== null && markPaidForm.id === req.id ? (
+                          <>
+                            <Input
+                              className="h-8 text-xs max-w-xs"
+                              placeholder="输入 TRC-20 TxHash"
+                              value={markPaidForm.txHash}
+                              onChange={e => setMarkPaidForm(prev => prev ? { ...prev, txHash: e.target.value } : prev)}
+                            />
+                            <Button size="sm" onClick={() => { if (markPaidForm) markPaidMutation.mutate({ id: markPaidForm.id, txHash: markPaidForm.txHash }); }} disabled={!markPaidForm.txHash || markPaidMutation.isPending}>
+                              确认支付
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setMarkPaidForm(null)}>取消</Button>
+                          </>
+                        ) : (
+                          <Button size="sm" variant="outline" onClick={() => setMarkPaidForm({ id: req.id, txHash: "" })}>
+                            💸 标记已支付
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </div>
   );

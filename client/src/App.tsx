@@ -34,6 +34,8 @@ const SellerAnalytics = lazy(() => import("./pages/SellerAnalytics"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
+const WalletPage = lazy(() => import("./pages/WalletPage"));
+const SellerWithdrawal = lazy(() => import("./pages/SellerWithdrawal"));
 
 function PageLoader() {
   return (
@@ -72,6 +74,8 @@ function Router() {
         <Route path="/signup" component={LoginPage} />
         <Route path="/privacy" component={PrivacyPolicy} />
         <Route path="/terms" component={TermsOfService} />
+        <Route path="/wallet" component={WalletPage} />
+        <Route path="/seller/withdrawal" component={SellerWithdrawal} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>

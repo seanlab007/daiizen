@@ -6,19 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Store, Package, Star, ExternalLink, ShoppingCart } from "lucide-react";
+import { Search, Store, Package } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
-const PLATFORM_LABELS: Record<string, string> = {
+const PLATFORM_LABELS_KEY: Record<string, string> = {
   tiktok: "TikTok",
-  pinduoduo: "拼多多",
-  xiaohongshu: "小红书",
+  pinduoduo: "marketplace.platform.pinduoduo",
+  xiaohongshu: "marketplace.platform.xiaohongshu",
   amazon: "Amazon",
   shein: "SHEIN",
-  taobao: "淘宝",
-  jd: "京东",
+  taobao: "marketplace.platform.taobao",
+  jd: "marketplace.platform.jd",
   lazada: "Lazada",
   shopee: "Shopee",
-  other: "其他",
+  other: "marketplace.platform.other",
 };
 
 const PLATFORM_COLORS: Record<string, string> = {
@@ -34,7 +35,6 @@ const PLATFORM_COLORS: Record<string, string> = {
   other: "bg-gray-500 text-white",
 };
 
-// ─── Store Card ───────────────────────────────────────────────────────────────
 function StoreCard({ store }: { store: any }) {
   return (
     <Link href={`/store/${store.slug}`}>
@@ -71,9 +71,12 @@ function StoreCard({ store }: { store: any }) {
   );
 }
 
-// ─── Product Card ─────────────────────────────────────────────────────────────
-function MarketplaceProductCard({ item }: { item: { product: any; store: any } }) {
+function MarketplaceProductCard({ item, t }: { item: { product: any; store: any }; t: (k: string) => string }) {
   const { product, store } = item;
+  const platformKey = PLATFORM_LABELS_KEY[product.externalPlatform];
+  const platformLabel = platformKey
+    ? (platformKey.startsWith("marketplace.") ? t(platformKey) : platformKey)
+    : product.externalPlatform;
 
   return (
     <Link href={`/store/${store.slug}/product/${product.slug}`}>
@@ -92,7 +95,7 @@ function MarketplaceProductCard({ item }: { item: { product: any; store: any } }
           )}
           {product.externalPlatform && (
             <span className={`absolute top-1 left-1 text-[10px] px-1.5 py-0.5 rounded font-medium ${PLATFORM_COLORS[product.externalPlatform] ?? "bg-gray-500 text-white"}`}>
-              {PLATFORM_LABELS[product.externalPlatform] ?? product.externalPlatform}
+              {platformLabel}
             </span>
           )}
         </div>
@@ -122,8 +125,8 @@ function MarketplaceProductCard({ item }: { item: { product: any; store: any } }
   );
 }
 
-// ─── Main Marketplace Page ────────────────────────────────────────────────────
 export default function Marketplace() {
+  const { t } = useLanguage();
   const [tab, setTab] = useState<"products" | "stores">("products");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -146,35 +149,34 @@ export default function Marketplace() {
   const handleSearch = (value: string) => {
     setSearch(value);
     setPage(1);
-    // Simple debounce
     setTimeout(() => setDebouncedSearch(value), 400);
   };
 
   const platforms = [
-    { value: "", label: "全部平台" },
+    { value: "", label: t("marketplace.platform.all") },
     { value: "tiktok", label: "TikTok" },
-    { value: "pinduoduo", label: "拼多多" },
-    { value: "xiaohongshu", label: "小红书" },
+    { value: "pinduoduo", label: t("marketplace.platform.pinduoduo") },
+    { value: "xiaohongshu", label: t("marketplace.platform.xiaohongshu") },
     { value: "amazon", label: "Amazon" },
     { value: "shein", label: "SHEIN" },
-    { value: "taobao", label: "淘宝" },
-    { value: "jd", label: "京东" },
+    { value: "taobao", label: t("marketplace.platform.taobao") },
+    { value: "jd", label: t("marketplace.platform.jd") },
   ];
+
+  const totalPages = Math.ceil((products.data?.total ?? 0) / 20);
 
   return (
     <div className="container py-6 space-y-6">
-      {/* Header */}
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold">全球商城</h1>
-        <p className="text-muted-foreground">发现来自全球卖家的优质商品</p>
+        <h1 className="text-2xl font-bold">{t("marketplace.title")}</h1>
+        <p className="text-muted-foreground">{t("marketplace.subtitle")}</p>
       </div>
 
-      {/* Search */}
       <div className="relative max-w-xl">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           className="pl-9"
-          placeholder="搜索商品或店铺..."
+          placeholder={t("marketplace.search")}
           value={search}
           onChange={(e) => handleSearch(e.target.value)}
         />
@@ -184,18 +186,17 @@ export default function Marketplace() {
         <TabsList>
           <TabsTrigger value="products" className="gap-2">
             <Package className="w-4 h-4" />
-            商品
+            {t("marketplace.products")}
             {products.data && <Badge variant="secondary" className="ml-1">{products.data.total}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="stores" className="gap-2">
             <Store className="w-4 h-4" />
-            店铺
+            {t("marketplace.stores")}
             {stores.data && <Badge variant="secondary" className="ml-1">{stores.data.total}</Badge>}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="products" className="space-y-4 mt-4">
-          {/* Platform filter */}
           <div className="flex gap-2 flex-wrap">
             {platforms.map((p) => (
               <Button
@@ -218,24 +219,24 @@ export default function Marketplace() {
           ) : products.data?.products.length === 0 ? (
             <div className="text-center py-20 text-muted-foreground">
               <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>暂无商品</p>
-              {search && <p className="text-sm mt-1">尝试其他关键词</p>}
+              <p>{t("marketplace.no_products")}</p>
+              {search && <p className="text-sm mt-1">{t("marketplace.try_other")}</p>}
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {products.data?.products.map((item) => (
-                <MarketplaceProductCard key={item.product.id} item={item} />
+                <MarketplaceProductCard key={item.product.id} item={item} t={t} />
               ))}
             </div>
           )}
 
           {(products.data?.total ?? 0) > 20 && (
             <div className="flex justify-center gap-2 pt-4">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>上一页</Button>
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t("marketplace.prev")}</Button>
               <span className="text-sm text-muted-foreground self-center">
-                第 {page} 页 / 共 {Math.ceil((products.data?.total ?? 0) / 20)} 页
+                {t("marketplace.page_of").replace("{page}", String(page)).replace("{total}", String(totalPages))}
               </span>
-              <Button variant="outline" size="sm" disabled={page * 20 >= (products.data?.total ?? 0)} onClick={() => setPage(p => p + 1)}>下一页</Button>
+              <Button variant="outline" size="sm" disabled={page * 20 >= (products.data?.total ?? 0)} onClick={() => setPage(p => p + 1)}>{t("marketplace.next")}</Button>
             </div>
           )}
         </TabsContent>
@@ -250,7 +251,7 @@ export default function Marketplace() {
           ) : stores.data?.stores.length === 0 ? (
             <div className="text-center py-20 text-muted-foreground">
               <Store className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>暂无店铺</p>
+              <p>{t("marketplace.no_stores")}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -262,22 +263,21 @@ export default function Marketplace() {
 
           {(stores.data?.total ?? 0) > 20 && (
             <div className="flex justify-center gap-2 pt-4">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>上一页</Button>
-              <span className="text-sm text-muted-foreground self-center">第 {page} 页</span>
-              <Button variant="outline" size="sm" disabled={page * 20 >= (stores.data?.total ?? 0)} onClick={() => setPage(p => p + 1)}>下一页</Button>
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t("marketplace.prev")}</Button>
+              <span className="text-sm text-muted-foreground self-center">{t("marketplace.page_of").replace("{page}", String(page)).replace("{total}", String(Math.ceil((stores.data?.total ?? 0) / 20)))}</span>
+              <Button variant="outline" size="sm" disabled={page * 20 >= (stores.data?.total ?? 0)} onClick={() => setPage(p => p + 1)}>{t("marketplace.next")}</Button>
             </div>
           )}
         </TabsContent>
       </Tabs>
 
-      {/* CTA for sellers */}
       <div className="border rounded-xl p-6 bg-gradient-to-r from-primary/5 to-primary/10 flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h3 className="font-semibold text-lg">想在 Daiizen 开店？</h3>
-          <p className="text-muted-foreground text-sm">支持导入 TikTok、拼多多、Amazon 等平台商品，轻松触达全球买家</p>
+          <h3 className="font-semibold text-lg">{t("marketplace.open_store_cta")}</h3>
+          <p className="text-muted-foreground text-sm">{t("marketplace.open_store_desc")}</p>
         </div>
         <Button asChild>
-          <Link href="/seller">立即开店</Link>
+          <Link href="/seller">{t("marketplace.open_store_btn")}</Link>
         </Button>
       </div>
     </div>

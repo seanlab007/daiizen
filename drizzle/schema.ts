@@ -476,3 +476,71 @@ export const dropshipOrders = mysqlTable("dropshipOrders", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type DropshipOrder = typeof dropshipOrders.$inferSelect;
+
+// ─── USDD Wallet System ───────────────────────────────────────────────────────
+// Each user has a USDD wallet for paying orders and receiving referral rewards
+
+export const usddWallets = mysqlTable("usddWallets", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  balanceUsdd: decimal("balanceUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
+  totalDepositedUsdd: decimal("totalDepositedUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
+  totalSpentUsdd: decimal("totalSpentUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
+  // TRC-20 deposit address assigned to this user (for monitoring incoming transfers)
+  depositAddress: varchar("depositAddress", { length: 64 }),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type UsddWallet = typeof usddWallets.$inferSelect;
+
+// Transaction log for all USDD movements (deposits, payments, rewards, withdrawals)
+export const usddTransactions = mysqlTable("usddTransactions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  type: mysqlEnum("type", [
+    "deposit",       // user topped up via TRC-20
+    "payment",       // user paid for an order
+    "refund",        // order refund
+    "reward",        // referral reward credited
+    "withdrawal",    // seller withdrew to external wallet
+    "adjustment",    // admin manual adjustment
+  ]).notNull(),
+  amountUsdd: decimal("amountUsdd", { precision: 18, scale: 6 }).notNull(), // positive = credit, negative = debit
+  balanceAfterUsdd: decimal("balanceAfterUsdd", { precision: 18, scale: 6 }).notNull(),
+  // Reference IDs (nullable, depends on type)
+  orderId: int("orderId"),
+  depositScreenshotUrl: text("depositScreenshotUrl"),
+  txHash: varchar("txHash", { length: 128 }), // TRC-20 transaction hash
+  status: mysqlEnum("status", ["pending", "confirmed", "rejected", "completed"])
+    .default("pending")
+    .notNull(),
+  note: text("note"),
+  adminNote: text("adminNote"),
+  confirmedAt: timestamp("confirmedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type UsddTransaction = typeof usddTransactions.$inferSelect;
+
+// ─── Seller Withdrawal Requests ───────────────────────────────────────────────
+// Sellers request to withdraw their earnings to an external TRC-20 wallet
+
+export const withdrawalRequests = mysqlTable("withdrawalRequests", {
+  id: int("id").autoincrement().primaryKey(),
+  storeId: int("storeId").notNull(),
+  userId: int("userId").notNull(),
+  amountUsdd: decimal("amountUsdd", { precision: 18, scale: 6 }).notNull(),
+  walletAddress: varchar("walletAddress", { length: 64 }).notNull(), // TRC-20 destination
+  status: mysqlEnum("status", ["pending", "approved", "rejected", "paid"])
+    .default("pending")
+    .notNull(),
+  // Admin fills these in when processing
+  txHash: varchar("txHash", { length: 128 }),
+  adminNote: text("adminNote"),
+  rejectionReason: text("rejectionReason"),
+  approvedAt: timestamp("approvedAt"),
+  paidAt: timestamp("paidAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type WithdrawalRequest = typeof withdrawalRequests.$inferSelect;

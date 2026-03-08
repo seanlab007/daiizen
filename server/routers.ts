@@ -3,6 +3,8 @@ import { storeRouter } from "./routers/store";
 import { s2b2cRouter } from "./routers/s2b2c";
 import { paymentRouter } from "./routers/payment";
 import { bulkImportRouter } from "./routers/bulkImport";
+import { walletRouter } from "./routers/wallet";
+import { withdrawalRouter } from "./routers/withdrawal";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
@@ -54,6 +56,8 @@ export const appRouter = router({
   s2b2c: s2b2cRouter,
   payment: paymentRouter,
   bulkImport: bulkImportRouter,
+  wallet: walletRouter,
+  withdrawal: withdrawalRouter,
 
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),

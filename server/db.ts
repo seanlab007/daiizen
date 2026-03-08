@@ -544,3 +544,193 @@ export async function getAdminStats() {
     pendingOrders: Number(orderStats?.pending ?? 0),
   };
 }
+
+// ─── USDD Wallet ──────────────────────────────────────────────────────────────
+
+export async function getOrCreateUsddWallet(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const { usddWallets } = await import("../drizzle/schema");
+  const existing = await db.select().from(usddWallets).where(eq(usddWallets.userId, userId)).limit(1);
+  if (existing[0]) return existing[0];
+  await db.insert(usddWallets).values({ userId, balanceUsdd: "0", totalDepositedUsdd: "0", totalSpentUsdd: "0" });
+  const [row] = await db.select().from(usddWallets).where(eq(usddWallets.userId, userId)).limit(1);
+  return row;
+}
+
+export async function getUserUsddBalance(userId: number) {
+  const wallet = await getOrCreateUsddWallet(userId);
+  return parseFloat(wallet.balanceUsdd);
+}
+
+export async function createUsddDeposit(userId: number, input: {
+  amountUsdd: string;
+  depositScreenshotUrl?: string;
+  txHash?: string;
+  note?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const { usddTransactions } = await import("../drizzle/schema");
+  const wallet = await getOrCreateUsddWallet(userId);
+  await db.insert(usddTransactions).values({
+    userId,
+    type: "deposit",
+    amountUsdd: input.amountUsdd,
+    balanceAfterUsdd: wallet.balanceUsdd, // will update after admin confirms
+    depositScreenshotUrl: input.depositScreenshotUrl,
+    txHash: input.txHash,
+    status: "pending",
+    note: input.note,
+  });
+  const [tx] = await db.select().from(usddTransactions)
+    .where(eq(usddTransactions.userId, userId))
+    .orderBy(desc(usddTransactions.createdAt))
+    .limit(1);
+  return tx;
+}
+
+export async function confirmUsddDeposit(txId: number, adminNote?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const { usddTransactions, usddWallets } = await import("../drizzle/schema");
+  const [tx] = await db.select().from(usddTransactions).where(eq(usddTransactions.id, txId)).limit(1);
+  if (!tx || tx.status !== "pending" || tx.type !== "deposit") throw new Error("Invalid transaction");
+  const wallet = await getOrCreateUsddWallet(tx.userId);
+  const newBalance = (parseFloat(wallet.balanceUsdd) + parseFloat(tx.amountUsdd)).toFixed(6);
+  await db.update(usddWallets).set({
+    balanceUsdd: newBalance,
+    totalDepositedUsdd: (parseFloat(wallet.totalDepositedUsdd) + parseFloat(tx.amountUsdd)).toFixed(6),
+  }).where(eq(usddWallets.userId, tx.userId));
+  await db.update(usddTransactions).set({
+    status: "confirmed",
+    balanceAfterUsdd: newBalance,
+    adminNote,
+    confirmedAt: new Date(),
+  }).where(eq(usddTransactions.id, txId));
+  return { success: true, newBalance };
+}
+
+export async function rejectUsddDeposit(txId: number, adminNote: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const { usddTransactions } = await import("../drizzle/schema");
+  await db.update(usddTransactions).set({ status: "rejected", adminNote }).where(eq(usddTransactions.id, txId));
+  return { success: true };
+}
+
+export async function getUserUsddTransactions(userId: number, limit = 20, offset = 0) {
+  const db = await getDb();
+  if (!db) return [];
+  const { usddTransactions } = await import("../drizzle/schema");
+  return db.select().from(usddTransactions)
+    .where(eq(usddTransactions.userId, userId))
+    .orderBy(desc(usddTransactions.createdAt))
+    .limit(limit)
+    .offset(offset);
+}
+
+export async function getAllPendingUsddDeposits() {
+  const db = await getDb();
+  if (!db) return [];
+  const { usddTransactions } = await import("../drizzle/schema");
+  return db.select().from(usddTransactions)
+    .where(and(eq(usddTransactions.type, "deposit"), eq(usddTransactions.status, "pending")))
+    .orderBy(desc(usddTransactions.createdAt));
+}
+
+// ─── Withdrawal Requests ──────────────────────────────────────────────────────
+
+export async function createWithdrawalRequest(input: {
+  storeId: number;
+  userId: number;
+  amountUsdd: string;
+  walletAddress: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const { withdrawalRequests, stores } = await import("../drizzle/schema");
+  // Check store has enough balance
+  const [store] = await db.select().from(stores).where(eq(stores.id, input.storeId)).limit(1);
+  if (!store) throw new Error("Store not found");
+  const available = parseFloat(store.pendingBalanceUsdd);
+  const requested = parseFloat(input.amountUsdd);
+  if (requested > available) throw new Error(`Insufficient balance. Available: ${available.toFixed(2)} USDD`);
+  if (requested < 10) throw new Error("Minimum withdrawal is 10 USDD");
+  // Deduct from pending balance
+  await db.update(stores).set({
+    pendingBalanceUsdd: (available - requested).toFixed(6),
+  }).where(eq(stores.id, input.storeId));
+  await db.insert(withdrawalRequests).values(input);
+  const [row] = await db.select().from(withdrawalRequests)
+    .where(eq(withdrawalRequests.storeId, input.storeId))
+    .orderBy(desc(withdrawalRequests.createdAt))
+    .limit(1);
+  return row;
+}
+
+export async function getWithdrawalsByStore(storeId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { withdrawalRequests } = await import("../drizzle/schema");
+  return db.select().from(withdrawalRequests)
+    .where(eq(withdrawalRequests.storeId, storeId))
+    .orderBy(desc(withdrawalRequests.createdAt));
+}
+
+export async function getAllWithdrawalRequests(statusFilter?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const { withdrawalRequests } = await import("../drizzle/schema");
+  const conditions = statusFilter
+    ? [eq(withdrawalRequests.status, statusFilter as "pending" | "approved" | "rejected" | "paid")]
+    : [];
+  return db.select().from(withdrawalRequests)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(withdrawalRequests.createdAt));
+}
+
+export async function approveWithdrawal(id: number, adminNote?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const { withdrawalRequests } = await import("../drizzle/schema");
+  await db.update(withdrawalRequests).set({
+    status: "approved",
+    adminNote,
+    approvedAt: new Date(),
+  }).where(eq(withdrawalRequests.id, id));
+  return { success: true };
+}
+
+export async function rejectWithdrawal(id: number, rejectionReason: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const { withdrawalRequests, stores } = await import("../drizzle/schema");
+  const [req] = await db.select().from(withdrawalRequests).where(eq(withdrawalRequests.id, id)).limit(1);
+  if (!req || req.status !== "pending") throw new Error("Invalid withdrawal request");
+  // Refund the amount back to store balance
+  const [store] = await db.select().from(stores).where(eq(stores.id, req.storeId)).limit(1);
+  if (store) {
+    await db.update(stores).set({
+      pendingBalanceUsdd: (parseFloat(store.pendingBalanceUsdd) + parseFloat(req.amountUsdd)).toFixed(6),
+    }).where(eq(stores.id, req.storeId));
+  }
+  await db.update(withdrawalRequests).set({
+    status: "rejected",
+    rejectionReason,
+  }).where(eq(withdrawalRequests.id, id));
+  return { success: true };
+}
+
+export async function markWithdrawalPaid(id: number, txHash: string, adminNote?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const { withdrawalRequests } = await import("../drizzle/schema");
+  await db.update(withdrawalRequests).set({
+    status: "paid",
+    txHash,
+    adminNote,
+    paidAt: new Date(),
+  }).where(eq(withdrawalRequests.id, id));
+  return { success: true };
+}
