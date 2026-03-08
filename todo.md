@@ -350,3 +350,11 @@
 - [x] Admin products tab: inline stock edit (click stock number to edit in-place)
 - [x] Admin products tab: Save/Cancel buttons appear on click
 - [x] Backend: reuses existing updateProduct procedure
+
+## Round 16: Military/Tactical Product Expansion
+
+- [x] Research military supply websites for product references and pricing
+- [x] Find product images for drones, military aircraft, firearms/ammo, medical supplies
+- [x] Add new subcategories: Drones & UAV, Firearms & Ammo, Military Medical, Military Aircraft
+- [x] Seed 19 new military/tactical products with CDN images
+- [x] Verified: 59 total active products in database
