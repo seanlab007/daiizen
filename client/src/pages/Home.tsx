@@ -2,7 +2,9 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { ArrowRight, ShieldCheck, Zap, Globe, Package } from "lucide-react";
+import { ArrowRight, ShieldCheck, Zap, Globe, Package, Users, Clock, TrendingDown } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
@@ -18,6 +20,82 @@ const CATEGORY_ICONS: Record<string, string> = {
   "sports": "⚽",
   "emergency-supplies": "🚨",
 };
+
+// ─── Hot Group Buys Section ──────────────────────────────────────────────────
+function HotGroupBuys() {
+  const { data: groups = [], isLoading } = trpc.groupBuy.list.useQuery();
+  if (isLoading || groups.length === 0) return null;
+
+  const topGroups = groups.slice(0, 3);
+
+  return (
+    <section className="py-12 bg-gradient-to-br from-orange-950/40 to-background">
+      <div className="container">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-orange-500/20">
+              <TrendingDown className="h-5 w-5 text-orange-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold">🔥 热门拼团</h2>
+              <p className="text-sm text-muted-foreground">人越多，折扣越大 — 最高享 50% 折扣</p>
+            </div>
+          </div>
+          <Link href="/group-buy">
+            <Button variant="outline" size="sm" className="gap-2 border-orange-500/30 text-orange-400 hover:bg-orange-500/10">
+              查看全部 <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {topGroups.map((group: any) => {
+            const timeLeft = Math.max(0, new Date(group.expiresAt).getTime() - Date.now());
+            const hoursLeft = Math.floor(timeLeft / 3600000);
+            const imgUrl = (() => {
+              try {
+                const imgs = typeof group.imageUrl === "string" ? JSON.parse(group.imageUrl) : group.imageUrl;
+                return Array.isArray(imgs) ? imgs[0] : (typeof imgs === "string" ? imgs : null);
+              } catch { return typeof group.imageUrl === "string" ? group.imageUrl : null; }
+            })();
+            return (
+              <Link key={group.id} href={`/group-buy/${group.shareToken}`}>
+                <div className="rounded-xl border border-orange-500/20 bg-card/80 hover:border-orange-500/50 transition-all hover:scale-[1.02] cursor-pointer overflow-hidden">
+                  <div className="aspect-video bg-muted relative">
+                    {imgUrl ? (
+                      <img src={imgUrl} alt={group.productName} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package className="h-10 w-10 text-muted-foreground" />
+                      </div>
+                    )}
+                    <Badge className="absolute top-2 left-2 bg-orange-600 text-white">
+                      -{group.currentTier?.discountPct ?? 5}%
+                    </Badge>
+                  </div>
+                  <div className="p-4 space-y-2">
+                    <h3 className="font-semibold line-clamp-1">{group.productName}</h3>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-lg font-bold text-orange-400">{group.currentPrice?.toFixed(2)} USDD</span>
+                      <span className="text-sm text-muted-foreground line-through">{group.originalPrice?.toFixed(2)}</span>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><Users className="h-3 w-3" />{group.displayCount?.toLocaleString()} 人已占位</span>
+                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{hoursLeft}h 剩余</span>
+                      </div>
+                      <Progress value={group.progress ?? 0} className="h-1.5" />
+                      <p className="text-xs text-orange-300">还需 {Math.max(0, group.targetCount - (group.displayCount ?? 0))} 人成团</p>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function Home() {
   const { t, language } = useLanguage();
@@ -350,6 +428,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Hot Group Buys Section */}
+      <HotGroupBuys />
 
       {/* USDD Banner */}
       <section className="py-16">

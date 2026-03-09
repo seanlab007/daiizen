@@ -51,7 +51,11 @@ function GroupBuyDetail({ shareToken }: { shareToken: string }) {
 
   const joinMutation = trpc.groupBuy.join.useMutation({
     onSuccess: (result) => {
-      toast.success(`🎉 成功加入拼团！当前折扣 ${result.discountPct}%，锁定价格 ${result.lockedPrice} USDD`);
+      if (result.isComplete) {
+        toast.success(`🎉 拼团成功！已凑够 ${group?.targetCount} 人，订单已自动生成，请查看我的订单！`);
+      } else {
+        toast.success(`✅ 已成功占位！当前 ${result.displayCount} 人，折扣 ${result.discountPct}%。再邀请 ${(group?.targetCount ?? 0) - result.displayCount} 人即可成团！`);
+      }
       refetch();
     },
     onError: (err) => toast.error(err.message),
@@ -168,14 +172,19 @@ function GroupBuyDetail({ shareToken }: { shareToken: string }) {
               {/* Join Button */}
               {!group.isExpired && group.status === "open" && (
                 user ? (
-                  <Button
-                    size="lg"
-                    className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold text-lg h-14"
-                    onClick={() => { setJoining(true); joinMutation.mutate({ shareToken, quantity: 1 }); }}
-                    disabled={joining}
-                  >
-                    {joining ? "加入中..." : `立即参团 — ${group.currentPrice.toFixed(2)} USDD`}
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      size="lg"
+                      className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold text-lg h-14"
+                      onClick={() => { setJoining(true); joinMutation.mutate({ shareToken, quantity: 1 }); }}
+                      disabled={joining}
+                    >
+                      {joining ? "占位中..." : `🔥 立即占位 — 锁定 ${group.currentPrice.toFixed(2)} USDD`}
+                    </Button>
+                    <p className="text-xs text-center text-muted-foreground">
+                      占位后等待凑够 {group.targetCount} 人自动成团，成团后订单自动生成，无需加入购物车
+                    </p>
+                  </div>
                 ) : (
                   <Link href="/login">
                     <Button size="lg" className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold text-lg h-14">
@@ -185,9 +194,16 @@ function GroupBuyDetail({ shareToken }: { shareToken: string }) {
                 )
               )}
               {group.status === "completed" && (
-                <div className="flex items-center gap-2 text-green-400 font-medium">
-                  <CheckCircle2 className="h-5 w-5" />
-                  拼团成功！订单处理中
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-green-400 font-medium">
+                    <CheckCircle2 className="h-5 w-5" />
+                    拼团成功！订单已自动生成
+                  </div>
+                  <Link href="/orders">
+                    <Button variant="outline" size="sm" className="w-full border-green-500/40 text-green-400">
+                      查看我的订单
+                    </Button>
+                  </Link>
                 </div>
               )}
             </div>

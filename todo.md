@@ -460,3 +460,11 @@
 - [x] Backend: submitContent + adminListCards + adminListSubmissions + adminUpdateCard + adminReviewSubmission procedures
 - [x] Admin: "Creator Cards" tab with card management table (activate/suspend/edit limit)
 - [x] Admin: content repayment submissions list with approve/reject actions
+
+## Round 23: Group Buy Redesign (No Cart) + Expiry + Homepage Section ✅
+- [x] Group Buy: redesigned to wait-for-group model but NO shopping cart — join = reserve spot directly
+- [x] Group Buy: join button shows "🔥 立即占位" with note "no cart needed, order auto-created on group completion"
+- [x] Group Buy: when group completes, orders auto-created for all participants
+- [x] Group Buy: auto-expiry processing (mark failed groups, notify participants with Chinese message)
+- [x] Group Buy: completed state shows "查看我的订单" link button
+- [x] Homepage: add "🔥 热门拼团" section (top 3 active groups, progress bars, countdown, discount badges)

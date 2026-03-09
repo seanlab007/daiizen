@@ -89,6 +89,7 @@ export const appRouter = router({
         shareToken: z.string(),
         quantity: z.number().default(1),
         joinedVia: z.string().optional(),
+        addressId: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
@@ -97,6 +98,7 @@ export const appRouter = router({
         if (!group) throw new TRPCError({ code: "NOT_FOUND", message: "Group buy not found" });
         return joinGroupBuy({ groupBuyId: group.id, userId: ctx.user.id, quantity: input.quantity, joinedVia: input.joinedVia });
       }),
+    processExpired: publicProcedure.mutation(() => processExpiredGroupBuys()),
   }),
   creatorCard: router({
     getMyCard: protectedProcedure.query(async ({ ctx }) => {
@@ -720,6 +722,7 @@ import {
   getGroupBuyByToken,
   createGroupBuy,
   joinGroupBuy,
+  processExpiredGroupBuys,
 } from "./groupBuy";
 import { reviewCreatorCard, generateCardNumber } from "./creatorCardAI";
 import { creatorCards, creatorCardConsumptions, groupBuys as groupBuysTable } from "../drizzle/schema";

@@ -679,6 +679,7 @@ export const groupBuyParticipants = mysqlTable("groupBuyParticipants", {
   joinedVia: mysqlEnum("joinedVia", ["direct", "whatsapp", "telegram", "wechat", "twitter", "copy"]).default("direct").notNull(),
   referrerId: int("referrerId"),
   txStatus: mysqlEnum("txStatus", ["pending", "completed", "refunded"]).default("pending").notNull(),
+  orderId: int("orderId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type GroupBuyParticipant = typeof groupBuyParticipants.$inferSelect;

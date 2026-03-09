@@ -1,12 +1,15 @@
 /**
  * Group Buy (拼团) Backend Logic
- * Pinduoduo-style tiered group purchasing for Daiizen products
+ * Pinduoduo-style: join = instant order, no waiting.
+ * Social proof via virtual count + real participant count.
  * 11 tiers: more people = deeper discount
  */
 import { randomBytes } from "crypto";
+import { nanoid } from "nanoid";
 import { getDb } from "./db";
-import { groupBuys, groupBuyParticipants } from "../drizzle/schema";
-import { eq, and } from "drizzle-orm";
+import { groupBuys, groupBuyParticipants, orders, orderItems, products, addresses } from "../drizzle/schema";
+import { eq, and, desc } from "drizzle-orm";
+import { createUserNotification } from "./db";
 
 // ─── Tier Config ──────────────────────────────────────────────────────────────
 export interface PriceTier {
@@ -179,6 +182,7 @@ export async function joinGroupBuy(params: {
   const originalPrice = parseFloat(group.originalPrice);
   const lockedPrice = calcDiscountedPrice(originalPrice, currentTier.discountPct);
 
+  // ── Reserve spot: insert participant record (no cart, no immediate order) ─
   await db.insert(groupBuyParticipants).values({
     groupBuyId,
     userId,
@@ -194,14 +198,131 @@ export async function joinGroupBuy(params: {
     .set({ currentCount: newRealCount, updatedAt: new Date() })
     .where(eq(groupBuys.id, groupBuyId));
 
+  // ── Check if group is now complete → create orders for all participants ───
   const isComplete = newRealCount >= group.targetCount;
   if (isComplete) {
     await db.update(groupBuys)
       .set({ status: "completed", completedAt: new Date(), updatedAt: new Date() })
       .where(eq(groupBuys.id, groupBuyId));
+
+    // Create orders for all participants (no cart involved)
+    const participants = await db.select().from(groupBuyParticipants)
+      .where(eq(groupBuyParticipants.groupBuyId, groupBuyId));
+
+    const productRow = group.productId
+      ? (await db.select().from(products).where(eq(products.id, group.productId)).limit(1))[0]
+      : null;
+
+    for (const p of participants) {
+      const pLockedPrice = parseFloat(p.lockedPrice);
+      const totalUsdd = (pLockedPrice * p.quantity).toFixed(6);
+      const orderNumber = `GB${Date.now().toString(36).toUpperCase()}${nanoid(4).toUpperCase()}`;
+
+      // Get participant's default address
+      const [defaultAddr] = await db.select().from(addresses)
+        .where(and(eq(addresses.userId, p.userId), eq(addresses.isDefault, 1)));
+      const [anyAddr] = defaultAddr
+        ? [defaultAddr]
+        : await db.select().from(addresses).where(eq(addresses.userId, p.userId)).limit(1);
+
+      await db.insert(orders).values({
+        userId: p.userId,
+        orderNumber,
+        totalUsdd,
+        status: "pending_payment",
+        shippingAddress: anyAddr ? {
+          fullName: anyAddr.fullName,
+          phone: anyAddr.phone || undefined,
+          country: anyAddr.country,
+          state: anyAddr.state || undefined,
+          city: anyAddr.city,
+          addressLine1: anyAddr.addressLine1,
+          addressLine2: anyAddr.addressLine2 || undefined,
+          postalCode: anyAddr.postalCode || undefined,
+        } : undefined,
+        notes: `Group Buy: ${group.productName} | Discount: ${p.discountPct}% | Token: ${group.shareToken}`,
+      });
+
+      const [newOrder] = await db.select().from(orders).where(eq(orders.orderNumber, orderNumber)).limit(1);
+
+      if (productRow && newOrder) {
+        const imgArr = Array.isArray(productRow.images) ? productRow.images as string[] : [];
+        await db.insert(orderItems).values({
+          orderId: newOrder.id,
+          productId: group.productId!,
+          productName: productRow.nameEn,
+          productImage: imgArr[0] || productRow.aiGeneratedImageUrl || null,
+          quantity: p.quantity,
+          unitPriceUsdd: pLockedPrice.toFixed(6),
+          subtotalUsdd: totalUsdd,
+        });
+
+        // Update participant with orderId
+        await db.update(groupBuyParticipants)
+          .set({ orderId: newOrder.id, txStatus: "completed" } as any)
+          .where(eq(groupBuyParticipants.id, p.id));
+      }
+
+      // Notify each participant
+      await createUserNotification({
+        userId: p.userId,
+        type: "new_order",
+        title: "🎉 拼团成功！订单已生成",
+        body: `"${group.productName}" 拼团成功！您的订单 #${orderNumber} 已创建，价格 ${pLockedPrice.toFixed(2)} USDD（享 ${p.discountPct}% 折扣）。`,
+        link: `/orders/${newOrder.id}`,
+      });
+    }
+  } else {
+    // Notify participant they've reserved a spot
+    await createUserNotification({
+      userId,
+      type: "system",
+      title: "✅ 已成功加入拼团",
+      body: `您已加入 "${group.productName}" 拼团，当前 ${newRealCount}/${group.targetCount} 人。再邀请 ${group.targetCount - newRealCount} 人即可成团！`,
+      link: `/group-buy/${group.shareToken}`,
+    });
   }
 
   return { lockedPrice, discountPct: currentTier.discountPct, displayCount, currentTier, nextTier, isComplete };
+}
+
+/**
+ * Process expired group buys — mark them as expired and notify participants.
+ * Call this periodically (e.g., on each list query or via a scheduled job).
+ */
+export async function processExpiredGroupBuys() {
+  const db = await getDb();
+  if (!db) return { processed: 0 };
+
+  const now = new Date();
+  // Find open groups that have expired
+  const expiredGroups = await db.select().from(groupBuys)
+    .where(and(eq(groupBuys.status, "open")));
+
+  let processed = 0;
+  for (const group of expiredGroups) {
+    if (now > group.expiresAt) {
+      await db.update(groupBuys)
+        .set({ status: "expired", updatedAt: now })
+        .where(eq(groupBuys.id, group.id));
+
+      // Notify all participants that group buy failed (not enough people)
+      const participants = await db.select().from(groupBuyParticipants)
+        .where(eq(groupBuyParticipants.groupBuyId, group.id));
+
+      for (const p of participants) {
+        await createUserNotification({
+          userId: p.userId,
+          type: "system",
+          title: "拼团失效",
+          body: `抱歉，"${group.productName}" 拼团已到期，共 ${group.currentCount}/${group.targetCount} 人参与，未凑够成团。您的占位已自动取消，无需任何操作。`,
+          link: `/group-buy`,
+        });
+      }
+      processed++;
+    }
+  }
+  return { processed };
 }
 
 export async function getGroupBuyByToken(shareToken: string, origin?: string) {

@@ -1,0 +1,1 @@
+ALTER TABLE `groupBuyParticipants` ADD `orderId` int;
