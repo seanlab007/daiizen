@@ -642,3 +642,86 @@ export const quoteRequests = mysqlTable("quoteRequests", {
 
 export type QuoteRequest = typeof quoteRequests.$inferSelect;
 export type InsertQuoteRequest = typeof quoteRequests.$inferInsert;
+
+// ─── Group Buy (拼团) ─────────────────────────────────────────────────────────
+
+export const groupBuys = mysqlTable("groupBuys", {
+  id: int("id").autoincrement().primaryKey(),
+  // Product reference (can be platform product or free-form)
+  productId: int("productId"),
+  productName: varchar("productName", { length: 255 }).notNull(),
+  productSlug: varchar("productSlug", { length: 255 }),
+  originalPrice: decimal("originalPrice", { precision: 18, scale: 4 }).notNull(),
+  // Group type: standard (72h), flash (24h), 万人团 (30d)
+  groupType: mysqlEnum("groupType", ["standard", "flash", "万人团"]).default("standard").notNull(),
+  targetCount: int("targetCount").default(10).notNull(),
+  currentCount: int("currentCount").default(0).notNull(),
+  status: mysqlEnum("status", ["open", "completed", "expired", "cancelled"]).default("open").notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  completedAt: timestamp("completedAt"),
+  creatorId: int("creatorId").notNull(),
+  shareToken: varchar("shareToken", { length: 32 }).notNull().unique(),
+  priceTiers: json("priceTiers"), // JSON array of PriceTier
+  imageUrl: text("imageUrl"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type GroupBuy = typeof groupBuys.$inferSelect;
+export type InsertGroupBuy = typeof groupBuys.$inferInsert;
+
+export const groupBuyParticipants = mysqlTable("groupBuyParticipants", {
+  id: int("id").autoincrement().primaryKey(),
+  groupBuyId: int("groupBuyId").notNull(),
+  userId: int("userId").notNull(),
+  quantity: int("quantity").default(1).notNull(),
+  lockedPrice: decimal("lockedPrice", { precision: 18, scale: 4 }).notNull(),
+  discountPct: decimal("discountPct", { precision: 5, scale: 2 }).notNull(),
+  joinedVia: mysqlEnum("joinedVia", ["direct", "whatsapp", "telegram", "wechat", "twitter", "copy"]).default("direct").notNull(),
+  referrerId: int("referrerId"),
+  txStatus: mysqlEnum("txStatus", ["pending", "completed", "refunded"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type GroupBuyParticipant = typeof groupBuyParticipants.$inferSelect;
+
+// ─── Creator Card ─────────────────────────────────────────────────────────────
+
+export const creatorCards = mysqlTable("creatorCards", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  cardNumber: varchar("cardNumber", { length: 24 }).notNull().unique(),
+  cardColor: mysqlEnum("cardColor", ["silver", "gold", "platinum", "black"]).default("gold").notNull(),
+  creditLimit: decimal("creditLimit", { precision: 10, scale: 2 }).default("0").notNull(),
+  usedAmount: decimal("usedAmount", { precision: 10, scale: 2 }).default("0").notNull(),
+  status: mysqlEnum("status", ["pending", "active", "suspended", "rejected"]).default("pending").notNull(),
+  totalFollowers: int("totalFollowers").default(0).notNull(),
+  aiScore: int("aiScore").default(0).notNull(),
+  aiReason: text("aiReason"),
+  socialAccounts: json("socialAccounts"), // JSON array of SocialAccount
+  expiresAt: timestamp("expiresAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CreatorCard = typeof creatorCards.$inferSelect;
+export type InsertCreatorCard = typeof creatorCards.$inferInsert;
+
+export const creatorCardConsumptions = mysqlTable("creatorCardConsumptions", {
+  id: int("id").autoincrement().primaryKey(),
+  cardId: int("cardId").notNull(),
+  userId: int("userId").notNull(),
+  merchant: varchar("merchant", { length: 255 }).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  description: text("description"),
+  // Repayment via content submission
+  repaymentStatus: mysqlEnum("repaymentStatus", ["pending", "submitted", "approved", "rejected"]).default("pending").notNull(),
+  submissionType: mysqlEnum("submissionType", ["wechat_moments", "community_trade", "social_media", "referral_signup"]),
+  contentUrl: text("contentUrl"),
+  screenshotUrl: text("screenshotUrl"),
+  contentDescription: text("contentDescription"),
+  claimedViews: int("claimedViews"),
+  aiReviewScore: int("aiReviewScore"),
+  aiReviewReason: text("aiReviewReason"),
+  darkRewardEarned: decimal("darkRewardEarned", { precision: 10, scale: 2 }).default("0").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CreatorCardConsumption = typeof creatorCardConsumptions.$inferSelect;

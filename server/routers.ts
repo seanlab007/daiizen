@@ -68,6 +68,81 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 
 export const appRouter = router({
   system: systemRouter,
+  groupBuy: router({
+    list: publicProcedure.query(() => getActiveGroupBuys()),
+    getByToken: publicProcedure
+      .input(z.object({ shareToken: z.string(), origin: z.string().optional() }))
+      .query(({ input }) => getGroupBuyByToken(input.shareToken, input.origin)),
+    create: protectedProcedure
+      .input(z.object({
+        productId: z.number().optional(),
+        productName: z.string(),
+        productSlug: z.string().optional(),
+        originalPrice: z.number(),
+        groupType: z.enum(["standard", "flash", "万人团"]).default("standard"),
+        imageUrl: z.string().optional(),
+        quantity: z.number().default(1),
+      }))
+      .mutation(({ ctx, input }) => createGroupBuy({ ...input, creatorId: ctx.user.id })),
+    join: protectedProcedure
+      .input(z.object({
+        shareToken: z.string(),
+        quantity: z.number().default(1),
+        joinedVia: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const [group] = await db.select().from(groupBuysTable).where(eqDrizzle(groupBuysTable.shareToken, input.shareToken));
+        if (!group) throw new TRPCError({ code: "NOT_FOUND", message: "Group buy not found" });
+        return joinGroupBuy({ groupBuyId: group.id, userId: ctx.user.id, quantity: input.quantity, joinedVia: input.joinedVia });
+      }),
+  }),
+  creatorCard: router({
+    getMyCard: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return null;
+      const [card] = await db.select().from(creatorCards).where(eqDrizzle(creatorCards.userId, ctx.user.id));
+      return card ?? null;
+    }),
+    applyCard: protectedProcedure
+      .input(z.object({
+        socialAccounts: z.array(z.object({
+          platform: z.string(),
+          handle: z.string(),
+          followers: z.number(),
+          url: z.string().optional(),
+        })),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const [existing] = await db.select().from(creatorCards).where(eqDrizzle(creatorCards.userId, ctx.user.id));
+        if (existing) throw new TRPCError({ code: "CONFLICT", message: "You already have a Creator Card application" });
+        const review = await reviewCreatorCard(input.socialAccounts);
+        const cardNumber = generateCardNumber();
+        const expiresAt = new Date(Date.now() + 365 * 24 * 3600 * 1000);
+        await db.insert(creatorCards).values({
+          userId: ctx.user.id,
+          cardNumber,
+          cardColor: review.cardColor as any,
+          creditLimit: review.creditLimit.toString(),
+          usedAmount: "0",
+          status: review.approved ? "active" : "rejected",
+          totalFollowers: review.totalFollowers,
+          aiScore: review.score,
+          aiReason: review.reason,
+          socialAccounts: input.socialAccounts,
+          expiresAt: review.approved ? expiresAt : undefined,
+        });
+        return review;
+      }),
+    getConsumptions: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return [];
+      return db.select().from(creatorCardConsumptions).where(eqDrizzle(creatorCardConsumptions.userId, ctx.user.id));
+    }),
+  }),
   store: storeRouter,
   s2b2c: s2b2cRouter,
   payment: paymentRouter,
@@ -532,5 +607,15 @@ Key facts: USDD is a stablecoin pegged to USD. Orders typically ship in 7-21 day
 
 // Import createCategory from db
 import { createCategory } from "./db";
+import {
+  getActiveGroupBuys,
+  getGroupBuyByToken,
+  createGroupBuy,
+  joinGroupBuy,
+} from "./groupBuy";
+import { reviewCreatorCard, generateCardNumber } from "./creatorCardAI";
+import { creatorCards, creatorCardConsumptions, groupBuys as groupBuysTable } from "../drizzle/schema";
+import { eq as eqDrizzle } from "drizzle-orm";
+import { getDb } from "./db";
 
 export type AppRouter = typeof appRouter;

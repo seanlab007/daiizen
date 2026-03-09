@@ -78,6 +78,13 @@
       "when": 1773022719298,
       "tag": "0010_fat_phalanx",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1773026968882,
+      "tag": "0011_numerous_wendigo",
+      "breakpoints": true
     }
   ]
 }

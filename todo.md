@@ -408,3 +408,22 @@
 - [x] Homepage: add parallel export banner section with price gap stats and 4 market flags
 - [x] QuoteRequest: read ?product= and ?price= URL params to pre-fill first row
 - [x] ParallelExport: price comparison table rows already link to product detail pages via slug
+
+## Round 21: Group Buy (拼团) + Creator Card
+
+### Group Buy (拼团)
+- [x] DB: add groupBuys and groupBuyParticipants tables to schema.ts
+- [x] Backend: port groupBuy.ts logic (tier ladder 11 tiers, virtual count, share links)
+- [x] Backend: tRPC procedures (list, getByToken, create, join)
+- [x] Frontend: /group-buy page with list view + detail view per share token
+- [x] Frontend: join button, progress bar, tier ladder grid, share links (WhatsApp/Telegram/Twitter/Copy)
+- [x] Add "🔥 Group Buy" nav link to Navbar (orange)
+
+### Creator Card
+- [x] DB: add creatorCards and creatorCardConsumptions tables to schema.ts
+- [x] Backend: port creatorCardAI.ts (AI follower review + tier assignment: Silver/Gold/Platinum/Black)
+- [x] Backend: tRPC procedures (applyCard, getMyCard, submitContent)
+- [x] Frontend: /creator-card page with virtual card display (gradient per tier)
+- [x] Frontend: application form with up to 5 social accounts + AI evaluation result
+- [x] Frontend: credit usage progress bar + AI score display
+- [x] Add "✨ Creator Card" nav link to Navbar (purple)

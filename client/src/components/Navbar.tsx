@@ -123,6 +123,12 @@ export default function Navbar() {
             <Link href="/parallel-export" className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1">
               🌏 Parallel Export
             </Link>
+            <Link href="/group-buy" className="text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors flex items-center gap-1">
+              🔥 Group Buy
+            </Link>
+            <Link href="/creator-card" className="text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors flex items-center gap-1">
+              ✨ Creator Card
+            </Link>
           </nav>
 
           {/* Desktop Search */}

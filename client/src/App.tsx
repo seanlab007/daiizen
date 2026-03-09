@@ -39,6 +39,8 @@ const SellerWithdrawal = lazy(() => import("./pages/SellerWithdrawal"));
 const Emergency = lazy(() => import("./pages/Emergency"));
 const QuoteRequest = lazy(() => import("./pages/QuoteRequest"));
 const ParallelExport = lazy(() => import("./pages/ParallelExport"));
+const GroupBuy = lazy(() => import("./pages/GroupBuy"));
+const CreatorCard = lazy(() => import("./pages/CreatorCard"));
 
 function PageLoader() {
   return (
@@ -82,6 +84,9 @@ function Router() {
         <Route path="/emergency" component={Emergency} />
         <Route path="/quote" component={QuoteRequest} />
         <Route path="/parallel-export" component={ParallelExport} />
+        <Route path="/group-buy" component={GroupBuy} />
+        <Route path="/group-buy/:shareToken" component={GroupBuy} />
+        <Route path="/creator-card" component={CreatorCard} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>
