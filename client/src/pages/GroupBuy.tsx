@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -61,6 +61,50 @@ function GroupBuyDetail({ shareToken }: { shareToken: string }) {
     onError: (err) => toast.error(err.message),
     onSettled: () => setJoining(false),
   });
+
+  // Inject dynamic OG meta tags for WhatsApp/Telegram share preview
+  useEffect(() => {
+    if (!group) return;
+    const spotsLeft = Math.max(0, group.targetCount - group.currentCount);
+    const ogTitle = `🔥 ${group.productName} 拼团 — ${group.currentTier.discountPct}% OFF`;
+    const ogDesc = spotsLeft > 0
+      ? `已有 ${group.displayCount} 人参团，还需 ${spotsLeft} 人即可成团！现价 ${group.currentPrice.toFixed(2)} USDD`
+      : `拼团已成功！${group.displayCount} 人参与`;
+    const ogImage = group.imageUrl || "";
+    const ogUrl = window.location.href;
+
+    const setMeta = (property: string, content: string) => {
+      let el = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement | null;
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute("property", property);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", content);
+    };
+    const setNameMeta = (name: string, content: string) => {
+      let el = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute("name", name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", content);
+    };
+
+    document.title = ogTitle;
+    setMeta("og:title", ogTitle);
+    setMeta("og:description", ogDesc);
+    setMeta("og:image", ogImage);
+    setMeta("og:url", ogUrl);
+    setMeta("og:type", "website");
+    setMeta("og:site_name", "Daiizen Global Marketplace");
+    setNameMeta("twitter:card", "summary_large_image");
+    setNameMeta("twitter:title", ogTitle);
+    setNameMeta("twitter:description", ogDesc);
+    setNameMeta("twitter:image", ogImage);
+    setNameMeta("description", ogDesc);
+  }, [group]);
 
   const handleCopy = (key: string, url: string) => {
     navigator.clipboard.writeText(url).then(() => {

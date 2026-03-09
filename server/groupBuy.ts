@@ -6,8 +6,8 @@
  */
 import { randomBytes } from "crypto";
 import { nanoid } from "nanoid";
-import { getDb } from "./db";
-import { groupBuys, groupBuyParticipants, orders, orderItems, products, addresses } from "../drizzle/schema";
+import { getDb, getOrCreateUsddWallet } from "./db";
+import { groupBuys, groupBuyParticipants, orders, orderItems, products, addresses, usddWallets, usddTransactions } from "../drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { createUserNotification } from "./db";
 
@@ -263,14 +263,65 @@ export async function joinGroupBuy(params: {
           .where(eq(groupBuyParticipants.id, p.id));
       }
 
-      // Notify each participant
-      await createUserNotification({
-        userId: p.userId,
-        type: "new_order",
-        title: "🎉 拼团成功！订单已生成",
-        body: `"${group.productName}" 拼团成功！您的订单 #${orderNumber} 已创建，价格 ${pLockedPrice.toFixed(2)} USDD（享 ${p.discountPct}% 折扣）。`,
-        link: `/orders/${newOrder.id}`,
-      });
+      // ── Auto-deduct USDD from participant wallet ────────────────────────
+      const totalToPay = pLockedPrice * p.quantity;
+      try {
+        const wallet = await getOrCreateUsddWallet(p.userId);
+        const currentBalance = parseFloat(wallet.balanceUsdd);
+        if (currentBalance >= totalToPay) {
+          const newBal = (currentBalance - totalToPay).toFixed(6);
+          await db.update(usddWallets).set({
+            balanceUsdd: newBal,
+            totalSpentUsdd: (parseFloat(wallet.totalSpentUsdd) + totalToPay).toFixed(6),
+          }).where(eq(usddWallets.userId, p.userId));
+
+          await db.insert(usddTransactions).values({
+            userId: p.userId,
+            type: "payment",
+            amountUsdd: totalToPay.toFixed(6),
+            balanceAfterUsdd: newBal,
+            status: "confirmed",
+            note: `Group Buy: ${group.productName} | Order #${orderNumber}`,
+            confirmedAt: new Date(),
+          });
+
+          // Mark order as paid
+          if (newOrder) {
+            await db.update(orders).set({
+              status: "paid",
+              paymentMethod: "usdd_balance",
+              paymentConfirmedAt: new Date(),
+            }).where(eq(orders.id, newOrder.id));
+          }
+
+          // Notify: payment success
+          await createUserNotification({
+            userId: p.userId,
+            type: "new_order",
+            title: "🎉 拼团成功！已自动扣款",
+            body: `"${group.productName}" 拼团成功！已从您的 USDD 钱包扣款 ${totalToPay.toFixed(2)} USDD，订单 #${orderNumber} 已支付。`,
+            link: `/orders/${newOrder?.id}`,
+          });
+        } else {
+          // Insufficient balance — keep order as pending_payment, notify user
+          await createUserNotification({
+            userId: p.userId,
+            type: "new_order",
+            title: "🎉 拼团成功！请完成付款",
+            body: `"${group.productName}" 拼团成功！但您的 USDD 余额不足（需 ${totalToPay.toFixed(2)} USDD，余额 ${currentBalance.toFixed(2)} USDD）。请前往钱包充值后完成支付。`,
+            link: `/wallet`,
+          });
+        }
+      } catch (_err) {
+        // If deduction fails, keep order as pending_payment and notify
+        await createUserNotification({
+          userId: p.userId,
+          type: "new_order",
+          title: "🎉 拼团成功！订单已生成",
+          body: `"${group.productName}" 拼团成功！您的订单 #${orderNumber} 已创建，请前往订单页完成付款。`,
+          link: `/orders/${newOrder?.id}`,
+        });
+      }
     }
   } else {
     // Notify participant they've reserved a spot

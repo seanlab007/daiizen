@@ -10,6 +10,7 @@ import { registerPhoneAuthRoutes } from "./phoneAuth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { getGroupBuyByToken } from "../groupBuy";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -47,6 +48,55 @@ async function startServer() {
   registerSocialAuthRoutes(app);
   // Phone auth: SMS OTP via Twilio
   registerPhoneAuthRoutes(app);
+
+  // Open Graph endpoint for group buy share pages (social crawlers)
+  app.get("/api/og/group-buy/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const origin = `${req.protocol}://${req.get("host")}`;
+      const group = await getGroupBuyByToken(token, origin);
+      if (!group) {
+        return res.status(404).send("Group buy not found");
+      }
+      const title = `🔥 ${group.productName} 拼团 — ${group.currentTier.discountPct}% OFF`;
+      const spotsLeft = Math.max(0, group.targetCount - group.currentCount);
+      const description = spotsLeft > 0
+        ? `已有 ${group.displayCount} 人参团，还需 ${spotsLeft} 人即可成团！现价 ${group.currentPrice.toFixed(2)} USDD（原价 ${group.originalPrice.toFixed(2)} USDD）`
+        : `拼团已成功！${group.displayCount} 人参与，最终价格 ${group.currentPrice.toFixed(2)} USDD`;
+      const imageUrl = group.imageUrl || `${origin}/og-default.png`;
+      const pageUrl = `${origin}/group-buy/${token}`;
+
+      const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${title}</title>
+  <meta name="description" content="${description}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="${pageUrl}" />
+  <meta property="og:title" content="${title}" />
+  <meta property="og:description" content="${description}" />
+  <meta property="og:image" content="${imageUrl}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:site_name" content="Daiizen Global Marketplace" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${title}" />
+  <meta name="twitter:description" content="${description}" />
+  <meta name="twitter:image" content="${imageUrl}" />
+  <meta http-equiv="refresh" content="0; url=${pageUrl}" />
+</head>
+<body>
+  <p>Redirecting to <a href="${pageUrl}">${pageUrl}</a>...</p>
+</body>
+</html>`;
+      res.setHeader("Content-Type", "text/html");
+      return res.send(html);
+    } catch (err) {
+      console.error("OG endpoint error:", err);
+      return res.status(500).send("Internal error");
+    }
+  });
 
   // tRPC API
   app.use(

@@ -468,3 +468,17 @@
 - [x] Group Buy: auto-expiry processing (mark failed groups, notify participants with Chinese message)
 - [x] Group Buy: completed state shows "查看我的订单" link button
 - [x] Homepage: add "🔥 热门拼团" section (top 3 active groups, progress bars, countdown, discount badges)
+
+## Round 24: Group Buy USDD Auto-Deduction + SEO OG Tags
+
+### USDD Auto-Deduction on Group Completion
+- [x] Backend: when group buy completes (currentCount >= targetCount), deduct USDD from each participant's wallet
+- [x] Backend: mark orders as "paid" after successful USDD deduction
+- [x] Backend: notify participants of successful payment and order confirmation
+- [x] Backend: handle insufficient USDD balance (skip that participant, notify them)
+
+### Group Buy Share Page SEO (Open Graph)
+- [x] Backend: getGroupBuyByToken already returns all OG data (productName, discountPct, currentCount, targetCount, imageUrl)
+- [x] Frontend: dynamic <meta> OG tags injected via useEffect on /group-buy/:token page
+- [x] Frontend: og:title (product + discount%), og:description (X people joined, Y spots left), og:image, og:url, twitter:card
+- [x] Client-side OG injection (sufficient for WhatsApp/Telegram when JS executes before share)
