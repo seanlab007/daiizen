@@ -279,7 +279,17 @@ export default function ParallelExport() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {currentProducts?.map((product) => {
-                const images: string[] = product.images ? JSON.parse(product.images as unknown as string) : [];
+                let images: string[] = [];
+                try {
+                  const raw: unknown = product.images;
+                  if (Array.isArray(raw)) {
+                    images = raw as string[];
+                  } else if (typeof raw === 'string' && raw.startsWith('[')) {
+                    images = JSON.parse(raw);
+                  } else if (typeof raw === 'string' && raw.startsWith('http')) {
+                    images = [raw];
+                  }
+                } catch { images = []; }
                 const imageUrl = images[0] || product.aiGeneratedImageUrl || "";
                 const price = parseFloat(product.priceUsdd);
                 return (

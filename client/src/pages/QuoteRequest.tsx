@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -64,10 +64,20 @@ export default function QuoteRequest() {
   const [urgency, setUrgency] = useState<"standard" | "urgent" | "critical">("standard");
   const [notes, setNotes] = useState("");
 
-  // Items
-  const [items, setItems] = useState<QuoteItem[]>([
-    { productId: 0, productName: "", quantity: 1, unitPriceUsdd: "0" },
-  ]);
+  // Items — pre-fill from URL params (?product=...&price=...)
+  const [items, setItems] = useState<QuoteItem[]>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const productName = params.get("product") || "";
+    const price = params.get("price") || "0";
+    return [{ productId: 0, productName, quantity: 1, unitPriceUsdd: price }];
+  });
+
+  // Also pre-fill urgency if ?urgency= is set
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const u = params.get("urgency");
+    if (u === "urgent" || u === "critical" || u === "standard") setUrgency(u);
+  }, []);
 
   // Product search
   const [searchQuery, setSearchQuery] = useState("");

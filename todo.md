@@ -401,3 +401,10 @@
 - [x] ProductDetail: show "Request Bulk Quote" button linking to /quote with product pre-filled
 - [x] ProductDetail: add "B2B Inquiry" info badge for high-value items
 - [x] ProductDetail: add "View Parallel Export Deals" secondary button
+
+## Round 20: Bug Fix + Homepage Banner + Quote Pre-fill
+
+- [x] Fix /parallel-export JSON.parse crash (images field type mismatch — safe try/catch parsing)
+- [x] Homepage: add parallel export banner section with price gap stats and 4 market flags
+- [x] QuoteRequest: read ?product= and ?price= URL params to pre-fill first row
+- [x] ParallelExport: price comparison table rows already link to product detail pages via slug

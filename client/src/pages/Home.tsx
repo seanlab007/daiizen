@@ -290,6 +290,67 @@ export default function Home() {
         </section>
       )}
 
+      {/* Parallel Export Banner */}
+      <section className="py-16 bg-slate-950 text-white">
+        <div className="container">
+          <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12">
+            <div className="flex-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-900/60 border border-blue-700/50 rounded-full text-xs font-medium text-blue-300 mb-4">
+                🌏 平行出口 · Parallel Export
+              </div>
+              <h2 className="text-3xl md:text-4xl font-black mb-3 leading-tight">
+                Buy at <span className="text-blue-400">China Prices</span>,
+                <br />Sell at <span className="text-green-400">Overseas Prices</span>
+              </h2>
+              <p className="text-slate-300 mb-6 max-w-lg">
+                The same VW ID.3 costs ¥120,000 in China but €31,300 in Germany — a <strong className="text-white">51% price gap</strong>.
+                Source EVs, industrial equipment, and consumer goods directly from Chinese factories at domestic prices.
+              </p>
+              <div className="flex flex-wrap gap-3 mb-6">
+                {[
+                  { label: "VW ID.3", saving: "-51%" },
+                  { label: "Li Auto L9", saving: "-55%" },
+                  { label: "BYD Han EV", saving: "-49%" },
+                  { label: "CATL Battery", saving: "-61%" },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5">
+                    <span className="text-sm text-slate-300">{item.label}</span>
+                    <span className="text-sm font-bold text-green-400">{item.saving}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Link href="/parallel-export">
+                  <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6">
+                    🌏 View Parallel Export Hub
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+                <Link href="/quote">
+                  <Button variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-800 px-6">
+                    📋 Request Bulk Quote
+                  </Button>
+                </Link>
+              </div>
+            </div>
+            <div className="hidden md:grid grid-cols-2 gap-3 shrink-0">
+              {[
+                { flag: "🇰🇿", name: "Kazakhstan", note: "Top EV importer" },
+                { flag: "🇦🇪", name: "UAE / Dubai", note: "Luxury EV demand" },
+                { flag: "🇩🇪", name: "Germany", note: "VW ID parallel import" },
+                { flag: "🇸🇦", name: "Saudi Arabia", note: "Energy storage" },
+              ].map((m) => (
+                <div key={m.name} className="bg-slate-800/60 border border-slate-700 rounded-xl p-4 text-center">
+                  <div className="text-2xl mb-1">{m.flag}</div>
+                  <div className="text-sm font-bold text-white">{m.name}</div>
+                  <div className="text-xs text-slate-400">{m.note}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* USDD Banner */}
       <section className="py-16">
         <div className="container">
