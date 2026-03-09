@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Link, useParams } from "wouter";
 import { useState } from "react";
-import { ShoppingCart, ArrowLeft, Package, Plus, Minus, Star } from "lucide-react";
+import { ShoppingCart, ArrowLeft, Package, Plus, Minus, Star, MessageSquare, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
@@ -218,36 +218,66 @@ export default function ProductDetail() {
               </div>
             )}
 
-            {/* Quantity + Add to Cart */}
+            {/* Quantity + Add to Cart / B2B Inquiry */}
             {product.stock > 0 && (
               <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-muted-foreground">{t("products.qty")}:</span>
-                  <div className="flex items-center gap-1 border border-border rounded-lg">
-                    <button
-                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                      className="w-8 h-8 flex items-center justify-center hover:bg-muted transition-colors rounded-l-lg"
-                    >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <span className="w-8 text-center text-sm font-medium">{quantity}</span>
-                    <button
-                      onClick={() => setQuantity((q) => Math.min(product.stock, q + 1))}
-                      className="w-8 h-8 flex items-center justify-center hover:bg-muted transition-colors rounded-r-lg"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
+                {/* B2B Inquiry badge for high-value items */}
+                {Number(product.priceUsdd) >= 10000 && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200">
+                    <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span className="text-xs text-blue-800 font-medium">
+                      This is a B2B product. Contact us for pricing, MOQ, and shipping terms.
+                    </span>
                   </div>
-                </div>
-                <Button
-                  size="lg"
-                  className="w-full gap-2"
-                  onClick={handleAddToCart}
-                  disabled={addToCartMutation.isPending}
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                  {t("products.add_cart")}
-                </Button>
+                )}
+
+                {Number(product.priceUsdd) < 10000 ? (
+                  // Standard Add to Cart for consumer products
+                  <>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-muted-foreground">{t("products.qty")}:</span>
+                      <div className="flex items-center gap-1 border border-border rounded-lg">
+                        <button
+                          onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-muted transition-colors rounded-l-lg"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="w-8 text-center text-sm font-medium">{quantity}</span>
+                        <button
+                          onClick={() => setQuantity((q) => Math.min(product.stock, q + 1))}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-muted transition-colors rounded-r-lg"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                    <Button
+                      size="lg"
+                      className="w-full gap-2"
+                      onClick={handleAddToCart}
+                      disabled={addToCartMutation.isPending}
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                      {t("products.add_cart")}
+                    </Button>
+                  </>
+                ) : (
+                  // B2B Inquiry flow for high-value products (>$10,000)
+                  <div className="space-y-2">
+                    <Link href={`/quote?product=${encodeURIComponent(product.nameEn)}&price=${product.priceUsdd}`}>
+                      <Button size="lg" className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+                        <MessageSquare className="w-4 h-4" />
+                        Request Bulk Quote
+                      </Button>
+                    </Link>
+                    <Link href="/parallel-export">
+                      <Button size="lg" variant="outline" className="w-full gap-2 border-blue-300 text-blue-700 hover:bg-blue-50">
+                        🌏 View Parallel Export Deals
+                      </Button>
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
 

@@ -376,3 +376,28 @@
 - [x] Add 7 new categories: Industrial Equipment, Electric Vehicles, Consumer Goods, Chemical Materials, Underwater Robotics, Smart Home Appliances, Power Infrastructure
 - [x] Seed 20 high-margin export products with CDN images
 - [x] Verified: 79 total active products in database
+
+## Round 19: Wi-Fi Products, Parallel Export Page, B2B Inquiry Flow
+
+### Portable Wi-Fi / Power Bank Products
+- [x] Search images for portable Wi-Fi routers, power banks, Dianxiaoer devices
+- [x] Add "portable-wifi" and "power-banks" categories
+- [x] Seed 12 products (6 Wi-Fi routers + 6 power banks) with CDN images
+- [x] Total: 91 active products in database
+
+### Parallel Export Dedicated Page (/parallel-export)
+- [x] Create /parallel-export route in App.tsx
+- [x] Page: hero banner targeting Central Asia / Middle East traders
+- [x] Page: China vs overseas price comparison table (5 EV models with savings %)
+- [x] Page: product grid with tabs (EVs / Industrial / Smart Home)
+- [x] Page: key export markets grid (8 countries)
+- [x] Page: "Why Parallel Export Works" section
+- [x] Page: contact/inquiry CTA section
+- [x] Add "Parallel Export" link to Navbar (blue, prominent)
+
+### B2B Inquiry Flow Optimization
+- [x] ProductDetail: detect if price >= $10,000
+- [x] ProductDetail: hide "Add to Cart" button for high-value products
+- [x] ProductDetail: show "Request Bulk Quote" button linking to /quote with product pre-filled
+- [x] ProductDetail: add "B2B Inquiry" info badge for high-value items
+- [x] ProductDetail: add "View Parallel Export Deals" secondary button

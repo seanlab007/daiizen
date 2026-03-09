@@ -120,6 +120,9 @@ export default function Navbar() {
             <Link href="/quote" className="text-sm font-medium text-amber-600 hover:text-amber-700 transition-colors flex items-center gap-1">
               📋 Bulk Quote
             </Link>
+            <Link href="/parallel-export" className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1">
+              🌏 Parallel Export
+            </Link>
           </nav>
 
           {/* Desktop Search */}

@@ -38,6 +38,7 @@ const WalletPage = lazy(() => import("./pages/WalletPage"));
 const SellerWithdrawal = lazy(() => import("./pages/SellerWithdrawal"));
 const Emergency = lazy(() => import("./pages/Emergency"));
 const QuoteRequest = lazy(() => import("./pages/QuoteRequest"));
+const ParallelExport = lazy(() => import("./pages/ParallelExport"));
 
 function PageLoader() {
   return (
@@ -80,6 +81,7 @@ function Router() {
         <Route path="/seller/withdrawal" component={SellerWithdrawal} />
         <Route path="/emergency" component={Emergency} />
         <Route path="/quote" component={QuoteRequest} />
+        <Route path="/parallel-export" component={ParallelExport} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>
