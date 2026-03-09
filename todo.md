@@ -427,3 +427,36 @@
 - [x] Frontend: application form with up to 5 social accounts + AI evaluation result
 - [x] Frontend: credit usage progress bar + AI score display
 - [x] Add "✨ Creator Card" nav link to Navbar (purple)
+
+## Round 22: Group Buy Button + Creator Card Repayment + Admin Creator Cards
+
+### Start Group Buy on ProductDetail
+- [ ] ProductDetail: add "🔥 Start Group Buy" button below Add to Cart
+- [ ] ProductDetail: dialog to configure group buy (duration hours, target count, group type)
+- [ ] Backend: groupBuy.create procedure (already exists, wire up)
+- [ ] After creation: show share link with copy + WhatsApp/Telegram buttons
+- [ ] Show existing active group buys for the same product
+
+### Creator Card Content Repayment
+- [ ] CreatorCard page: add "Submit Content for Repayment" section when card is active
+- [ ] Form: content URL input, platform selector, screenshot upload (S3)
+- [ ] Backend: submitContent procedure (already exists, wire up)
+- [ ] Show repayment history with status (pending/approved/rejected)
+
+### Admin Creator Cards Management
+- [ ] Admin: add "Creator Cards" tab to nav
+- [ ] Admin: list all creator card applications with status badges
+- [ ] Admin: approve/reject pending applications with manual override
+- [ ] Admin: adjust credit limit for existing cards
+- [ ] Admin: list content repayment submissions, approve/reject each
+
+## Round 22: Group Buy Button + Creator Card Repayment + Admin Creator Cards ✅
+- [x] ProductDetail: "Start Group Buy" button with dialog (title, target qty, end date, discount %)
+- [x] ProductDetail: after creation, show share link with copy + WhatsApp/Telegram/Twitter buttons
+- [x] CreatorCard: ConsumptionList component showing pending/submitted consumptions
+- [x] CreatorCard: ContentRepaymentDialog with screenshot upload + content URL + description
+- [x] CreatorCard: AI review result display (score, DARK reward, approval/rejection)
+- [x] Backend: uploadContentScreenshot procedure (base64 → S3)
+- [x] Backend: submitContent + adminListCards + adminListSubmissions + adminUpdateCard + adminReviewSubmission procedures
+- [x] Admin: "Creator Cards" tab with card management table (activate/suspend/edit limit)
+- [x] Admin: content repayment submissions list with approve/reject actions

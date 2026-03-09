@@ -9,7 +9,7 @@ import { Package, ShoppingBag, BarChart3, Plus, Pencil, Trash2, Sparkles, Refres
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 
-type Section = "dashboard" | "products" | "orders" | "categories" | "rates" | "stores" | "deposits" | "marketplace-config" | "payment-config" | "usdd-deposits" | "usdd-withdrawals" | "quotes";
+type Section = "dashboard" | "products" | "orders" | "categories" | "rates" | "stores" | "deposits" | "marketplace-config" | "payment-config" | "usdd-deposits" | "usdd-withdrawals" | "quotes" | "creator-cards";
 
 const STATUS_COLORS: Record<string, string> = {
   pending_payment: "text-amber-600",
@@ -70,6 +70,16 @@ export default function Admin() {
   const [stockEditForm, setStockEditForm] = useState<{ productId: number; stock: number } | null>(null);
   const [quoteStatusForm, setQuoteStatusForm] = useState<{ id: number; status: string; adminNotes: string; quotedPrice: string } | null>(null);
   const { data: quoteRequests = [], refetch: refetchQuotes } = trpc.quotes.list.useQuery({ status: undefined }, { enabled: section === "quotes" && isAuthenticated && user?.role === "admin" });
+  const { data: creatorCardsList = [], refetch: refetchCreatorCards } = trpc.creatorCard.adminListCards.useQuery(undefined, { enabled: section === "creator-cards" && isAuthenticated && user?.role === "admin" });
+  const { data: contentSubmissions = [], refetch: refetchSubmissions } = trpc.creatorCard.adminListSubmissions.useQuery({ status: undefined }, { enabled: section === "creator-cards" && isAuthenticated && user?.role === "admin" });
+  const updateCreatorCardMutation = trpc.creatorCard.adminUpdateCard.useMutation({
+    onSuccess: () => { toast.success("Card updated"); refetchCreatorCards(); },
+    onError: (err) => toast.error(err.message),
+  });
+  const reviewSubmissionMutation = trpc.creatorCard.adminReviewSubmission.useMutation({
+    onSuccess: () => { toast.success("Submission reviewed"); refetchSubmissions(); },
+    onError: (err) => toast.error(err.message),
+  });
   const updateQuoteStatusMutation = trpc.quotes.updateStatus.useMutation({ onSuccess: () => { refetchQuotes(); setQuoteStatusForm(null); toast.success("Quote status updated"); } });
 
   const createProductMutation = trpc.admin.createProduct.useMutation({ onSuccess: () => { refetchProducts(); setShowNewProduct(false); toast.success("Product created"); } });
@@ -103,6 +113,7 @@ export default function Admin() {
     { id: "usdd-deposits", label: t("admin.usdd_deposits"), icon: DollarSign },
     { id: "usdd-withdrawals", label: t("admin.usdd_withdrawals"), icon: Banknote },
     { id: "quotes", label: "Bulk Quotes", icon: FileText },
+    { id: "creator-cards", label: "Creator Cards", icon: CreditCard },
   ];
 
   return (
@@ -933,6 +944,113 @@ export default function Admin() {
                         <a href={`mailto:${q.contactEmail}?subject=Re: Bulk Quote Request #${q.id} - ${q.orgName}`}>
                           <Button size="sm" variant="outline">Reply by Email</Button>
                         </a>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {section === "creator-cards" && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-bold flex items-center gap-2"><CreditCard className="w-5 h-5 text-purple-400" /> Creator Card Applications</h2>
+            {creatorCardsList.length === 0 ? (
+              <p className="text-muted-foreground text-sm">No applications yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-[700px] w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-muted-foreground">
+                      <th className="text-left py-2 px-3">User ID</th>
+                      <th className="text-left py-2 px-3">Card #</th>
+                      <th className="text-left py-2 px-3">Tier</th>
+                      <th className="text-left py-2 px-3">Status</th>
+                      <th className="text-left py-2 px-3">Credit Limit</th>
+                      <th className="text-left py-2 px-3">Used</th>
+                      <th className="text-left py-2 px-3">AI Score</th>
+                      <th className="text-left py-2 px-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {creatorCardsList.map((c: any) => (
+                      <tr key={c.id} className="border-b border-border hover:bg-muted/20">
+                        <td className="py-2 px-3">{c.userId}</td>
+                        <td className="py-2 px-3 font-mono text-xs">{c.cardNumber}</td>
+                        <td className="py-2 px-3 capitalize">{c.cardColor}</td>
+                        <td className="py-2 px-3">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            c.status === "active" ? "bg-green-500/20 text-green-400" :
+                            c.status === "rejected" ? "bg-red-500/20 text-red-400" :
+                            c.status === "suspended" ? "bg-orange-500/20 text-orange-400" :
+                            "bg-yellow-500/20 text-yellow-400"
+                          }`}>{c.status}</span>
+                        </td>
+                        <td className="py-2 px-3">${parseFloat(c.creditLimit).toFixed(0)}</td>
+                        <td className="py-2 px-3">${parseFloat(c.usedAmount).toFixed(0)}</td>
+                        <td className="py-2 px-3">{c.aiScore}</td>
+                        <td className="py-2 px-3">
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" className="text-xs h-7"
+                              onClick={() => updateCreatorCardMutation.mutate({ cardId: c.id, status: c.status === "active" ? "suspended" : "active" })}>
+                              {c.status === "active" ? "Suspend" : "Activate"}
+                            </Button>
+                            <Button size="sm" variant="outline" className="text-xs h-7"
+                              onClick={() => {
+                                const limit = prompt("New credit limit (USDD):", c.creditLimit);
+                                if (limit) updateCreatorCardMutation.mutate({ cardId: c.id, creditLimit: limit });
+                              }}>Edit Limit</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <h2 className="text-xl font-bold flex items-center gap-2 pt-4 border-t border-border"><FileText className="w-5 h-5 text-orange-400" /> Content Repayment Submissions</h2>
+            {contentSubmissions.length === 0 ? (
+              <p className="text-muted-foreground text-sm">No submissions yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {contentSubmissions.map((s: any) => (
+                  <div key={s.id} className="p-4 rounded-lg border border-border bg-card space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <span className="font-medium text-sm">Submission #{s.id}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">User #{s.userId} · Card #{s.cardId}</span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        s.repaymentStatus === "approved" ? "bg-green-500/20 text-green-400" :
+                        s.repaymentStatus === "rejected" ? "bg-red-500/20 text-red-400" :
+                        s.repaymentStatus === "submitted" ? "bg-blue-500/20 text-blue-400" :
+                        "bg-yellow-500/20 text-yellow-400"
+                      }`}>{s.repaymentStatus}</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-muted-foreground">
+                      <span>Type: {s.submissionType ?? "—"}</span>
+                      <span>Amount: ${parseFloat(s.amount).toFixed(2)}</span>
+                      <span>Views: {s.claimedViews?.toLocaleString() ?? "—"}</span>
+                      <span>DARK Reward: {s.darkRewardEarned ?? "0"}</span>
+                    </div>
+                    {s.contentUrl && <a href={s.contentUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 underline break-all">{s.contentUrl}</a>}
+                    {s.screenshotUrl && <a href={s.screenshotUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 underline">View Screenshot</a>}
+                    {s.contentDescription && <p className="text-xs text-muted-foreground">{s.contentDescription}</p>}
+                    {s.aiReviewReason && <p className="text-xs italic text-muted-foreground">AI: {s.aiReviewReason}</p>}
+                    {s.repaymentStatus === "submitted" && (
+                      <div className="flex gap-2 mt-2">
+                        <Button size="sm" className="bg-green-600 hover:bg-green-500 text-xs h-7"
+                          onClick={() => reviewSubmissionMutation.mutate({ consumptionId: s.id, approved: true })}>
+                          <CheckCircle className="w-3 h-3 mr-1" /> Approve
+                        </Button>
+                        <Button size="sm" variant="outline" className="text-xs h-7 border-red-300 text-red-500"
+                          onClick={() => {
+                            const note = prompt("Rejection reason:");
+                            reviewSubmissionMutation.mutate({ consumptionId: s.id, approved: false, adminNote: note ?? undefined });
+                          }}>
+                          <XCircle className="w-3 h-3 mr-1" /> Reject
+                        </Button>
                       </div>
                     )}
                   </div>

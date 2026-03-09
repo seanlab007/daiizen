@@ -13,8 +13,13 @@ import { toast } from "sonner";
 import {
   CreditCard, Star, Users, Sparkles, Plus, Trash2,
   CheckCircle2, XCircle, Loader2, Instagram, Youtube,
-  Twitter, Globe, TrendingUp, ShoppingBag, ArrowRight
+  Twitter, Globe, TrendingUp, ShoppingBag, ArrowRight,
+  Upload, FileText, ExternalLink
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
 
 const PLATFORMS = [
   { value: "instagram", label: "Instagram", icon: Instagram },
@@ -235,6 +240,148 @@ function ApplyForm() {
   );
 }
 
+const SUBMISSION_TYPES = [
+  { value: "social_media", label: "Social Media Post (Instagram/TikTok/Twitter)" },
+  { value: "wechat_moments", label: "WeChat Moments 朋友圈" },
+  { value: "community_trade", label: "Community Group Trade Referral" },
+  { value: "referral_signup", label: "Referral Signup" },
+];
+
+function ContentRepaymentDialog({ consumptionId, onClose, onSuccess }: { consumptionId: number; onClose: () => void; onSuccess: () => void }) {
+  const [submissionType, setSubmissionType] = useState<"wechat_moments" | "community_trade" | "social_media" | "referral_signup">("social_media");
+  const [contentUrl, setContentUrl] = useState("");
+  const [description, setDescription] = useState("");
+  const [claimedViews, setClaimedViews] = useState("");
+  const [platform, setPlatform] = useState("");
+  const [screenshotUrl, setScreenshotUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const uploadMutation = trpc.creatorCard.uploadContentScreenshot.useMutation({
+    onSuccess: (data) => { setScreenshotUrl(data.url); setUploading(false); toast.success("Screenshot uploaded!"); },
+    onError: (err) => { toast.error(err.message); setUploading(false); },
+  });
+
+  const submitMutation = trpc.creatorCard.submitContent.useMutation({
+    onSuccess: (data) => { setResult(data); onSuccess(); },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("File too large (max 5MB)"); return; }
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = (ev.target?.result as string).split(",")[1];
+      uploadMutation.mutate({ base64, mimeType: file.type });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = () => {
+    if (!contentUrl && !screenshotUrl && !description) {
+      toast.error("Please provide at least one piece of evidence (URL, screenshot, or description)");
+      return;
+    }
+    submitMutation.mutate({
+      consumptionId,
+      submissionType,
+      contentUrl: contentUrl || undefined,
+      screenshotUrl: screenshotUrl || undefined,
+      contentDescription: description || undefined,
+      claimedViews: claimedViews ? parseInt(claimedViews) : undefined,
+      platform: platform || undefined,
+    });
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5 text-orange-400" />
+            Submit Content for Repayment
+          </DialogTitle>
+          <DialogDescription>Provide evidence of your content promotion to earn DARK rewards and repay your balance.</DialogDescription>
+        </DialogHeader>
+
+        {result ? (
+          <div className={`p-6 rounded-lg text-center space-y-3 ${result.approved ? "bg-green-500/10 border border-green-500/30" : "bg-red-500/10 border border-red-500/30"}`}>
+            {result.approved ? <CheckCircle2 className="h-12 w-12 mx-auto text-green-400" /> : <XCircle className="h-12 w-12 mx-auto text-red-400" />}
+            <h3 className={`font-bold text-lg ${result.approved ? "text-green-400" : "text-red-400"}`}>
+              {result.approved ? "Submission Approved!" : "Submission Rejected"}
+            </h3>
+            <p className="text-sm text-muted-foreground">{result.reason}</p>
+            {result.approved && (
+              <div className="flex justify-center gap-6 mt-2">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-400">{result.score}</div>
+                  <div className="text-xs text-muted-foreground">AI Score</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-yellow-400">{result.darkReward}</div>
+                  <div className="text-xs text-muted-foreground">DARK Earned</div>
+                </div>
+              </div>
+            )}
+            <button onClick={onClose} className="text-sm underline text-muted-foreground">Close</button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs font-medium">Submission Type</Label>
+              <Select value={submissionType} onValueChange={(v: any) => setSubmissionType(v)}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SUBMISSION_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs font-medium">Platform</Label>
+                <Input className="mt-1 h-9" placeholder="e.g. Instagram" value={platform} onChange={e => setPlatform(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs font-medium">Claimed Views</Label>
+                <Input className="mt-1 h-9" type="number" placeholder="e.g. 5000" value={claimedViews} onChange={e => setClaimedViews(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-medium">Content URL (optional)</Label>
+              <Input className="mt-1 h-9" placeholder="https://instagram.com/p/..." value={contentUrl} onChange={e => setContentUrl(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs font-medium">Description</Label>
+              <Textarea className="mt-1" rows={3} placeholder="Describe your content and how it promotes Daiizen..." value={description} onChange={e => setDescription(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs font-medium">Screenshot</Label>
+              <div className="mt-1 flex items-center gap-3">
+                <label className="cursor-pointer flex items-center gap-2 px-3 py-2 rounded border border-dashed border-border hover:bg-muted/50 text-sm">
+                  <Upload className="w-4 h-4" />
+                  {uploading ? "Uploading..." : screenshotUrl ? "Uploaded ✓" : "Upload Screenshot"}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} disabled={uploading} />
+                </label>
+                {screenshotUrl && <a href={screenshotUrl} target="_blank" rel="noopener noreferrer"><ExternalLink className="w-4 h-4 text-blue-400" /></a>}
+              </div>
+            </div>
+            <Button
+              className="w-full bg-orange-600 hover:bg-orange-500"
+              onClick={handleSubmit}
+              disabled={submitMutation.isPending || uploading}
+            >
+              {submitMutation.isPending ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Submitting...</> : "Submit for AI Review"}
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function MyCard({ card }: { card: any }) {
   const usedPct = Math.min(100, (parseFloat(card.usedAmount) / parseFloat(card.creditLimit)) * 100);
   const available = parseFloat(card.creditLimit) - parseFloat(card.usedAmount);
@@ -287,6 +434,8 @@ function MyCard({ card }: { card: any }) {
         </Card>
       )}
 
+      <ConsumptionList cardId={card.id} />
+
       <div className="text-center">
         <p className="text-sm text-muted-foreground mb-3">
           使用 Creator Card 购买商品后，通过发布内容来还款
@@ -300,6 +449,85 @@ function MyCard({ card }: { card: any }) {
         </Link>
       </div>
     </div>
+  );
+}
+
+function ConsumptionList({ cardId }: { cardId: number }) {
+  const { data: consumptions = [], refetch } = trpc.creatorCard.getConsumptions.useQuery();
+  const [repayingId, setRepayingId] = useState<number | null>(null);
+  const pending = consumptions.filter((c: any) => c.repaymentStatus === "pending");
+  const submitted = consumptions.filter((c: any) => c.repaymentStatus !== "pending");
+
+  if (consumptions.length === 0) return null;
+
+  const statusColor: Record<string, string> = {
+    pending: "bg-yellow-500/20 text-yellow-400",
+    submitted: "bg-blue-500/20 text-blue-400",
+    approved: "bg-green-500/20 text-green-400",
+    rejected: "bg-red-500/20 text-red-400",
+  };
+
+  return (
+    <Card className="border-orange-500/20">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <FileText className="h-4 w-4 text-orange-400" />
+          消费记录 & 内容还款
+        </CardTitle>
+        <CardDescription>提交内容证明，通过 AI 审核后获得 DARK 代币还款</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {pending.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-yellow-400 mb-2">待还款 ({pending.length})</p>
+            {pending.map((c: any) => (
+              <div key={c.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border mb-2">
+                <div>
+                  <p className="text-sm font-medium">{c.merchant}</p>
+                  <p className="text-xs text-muted-foreground">${parseFloat(c.amount).toFixed(2)} USDD · {c.description}</p>
+                </div>
+                <Button
+                  size="sm"
+                  className="bg-orange-600 hover:bg-orange-500 text-xs"
+                  onClick={() => setRepayingId(c.id)}
+                >
+                  <Upload className="w-3 h-3 mr-1" />
+                  提交内容
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+        {submitted.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground mb-2">已提交 ({submitted.length})</p>
+            {submitted.map((c: any) => (
+              <div key={c.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border mb-2">
+                <div>
+                  <p className="text-sm font-medium">{c.merchant}</p>
+                  <p className="text-xs text-muted-foreground">${parseFloat(c.amount).toFixed(2)} USDD</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {c.darkRewardEarned && parseFloat(c.darkRewardEarned) > 0 && (
+                    <span className="text-xs text-yellow-400">+{c.darkRewardEarned} DARK</span>
+                  )}
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor[c.repaymentStatus] ?? "bg-muted text-muted-foreground"}`}>
+                    {c.repaymentStatus}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+      {repayingId !== null && (
+        <ContentRepaymentDialog
+          consumptionId={repayingId}
+          onClose={() => setRepayingId(null)}
+          onSuccess={() => { setRepayingId(null); refetch(); }}
+        />
+      )}
+    </Card>
   );
 }
 

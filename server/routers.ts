@@ -142,6 +142,114 @@ export const appRouter = router({
       if (!db) return [];
       return db.select().from(creatorCardConsumptions).where(eqDrizzle(creatorCardConsumptions.userId, ctx.user.id));
     }),
+    // Upload content screenshot to S3
+    uploadContentScreenshot: protectedProcedure
+      .input(z.object({ base64: z.string(), mimeType: z.string().default("image/jpeg") }))
+      .mutation(async ({ ctx, input }) => {
+        const { storagePut } = await import("./storage");
+        const buffer = Buffer.from(input.base64, "base64");
+        if (buffer.length > 5 * 1024 * 1024) throw new TRPCError({ code: "BAD_REQUEST", message: "File too large (max 5MB)" });
+        const ext = input.mimeType.includes("png") ? "png" : "jpg";
+        const key = `creator-content/${ctx.user.id}-${Date.now()}.${ext}`;
+        const { url } = await storagePut(key, buffer, input.mimeType);
+        return { url };
+      }),
+    // Submit content for repayment on an existing consumption record
+    submitContent: protectedProcedure
+      .input(z.object({
+        consumptionId: z.number(),
+        submissionType: z.enum(["wechat_moments", "community_trade", "social_media", "referral_signup"]),
+        contentUrl: z.string().optional(),
+        screenshotUrl: z.string().optional(),
+        contentDescription: z.string().optional(),
+        claimedViews: z.number().optional(),
+        platform: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const [consumption] = await db.select().from(creatorCardConsumptions)
+          .where(eqDrizzle(creatorCardConsumptions.id, input.consumptionId));
+        if (!consumption) throw new TRPCError({ code: "NOT_FOUND", message: "Consumption record not found" });
+        if (consumption.userId !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+        if (consumption.repaymentStatus !== "pending") throw new TRPCError({ code: "BAD_REQUEST", message: "Content already submitted for this record" });
+        const { reviewSocialDistribution } = await import("./socialDistributionAI");
+        const review = await reviewSocialDistribution({
+          submissionType: input.submissionType,
+          platform: input.platform,
+          contentUrl: input.contentUrl,
+          screenshotUrl: input.screenshotUrl,
+          description: input.contentDescription,
+          claimedViews: input.claimedViews,
+        });
+        await db.update(creatorCardConsumptions)
+          .set({
+            repaymentStatus: review.approved ? "submitted" : "rejected",
+            submissionType: input.submissionType,
+            contentUrl: input.contentUrl ?? null,
+            screenshotUrl: input.screenshotUrl ?? null,
+            contentDescription: input.contentDescription ?? null,
+            claimedViews: input.claimedViews ?? null,
+            aiReviewScore: review.score,
+            aiReviewReason: review.reason,
+            darkRewardEarned: review.darkReward.toString(),
+            updatedAt: new Date(),
+          })
+          .where(eqDrizzle(creatorCardConsumptions.id, input.consumptionId));
+        return review;
+      }),
+    // Admin: list all creator card applications
+    adminListCards: adminProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return db.select().from(creatorCards);
+    }),
+    // Admin: update card status / credit limit
+    adminUpdateCard: adminProcedure
+      .input(z.object({
+        cardId: z.number(),
+        status: z.enum(["pending", "active", "suspended", "rejected"]).optional(),
+        creditLimit: z.string().optional(),
+        adminNote: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const updates: Record<string, unknown> = { updatedAt: new Date() };
+        if (input.status) updates.status = input.status;
+        if (input.creditLimit) updates.creditLimit = input.creditLimit;
+        await db.update(creatorCards).set(updates as any).where(eqDrizzle(creatorCards.id, input.cardId));
+        return { success: true };
+      }),
+    // Admin: list all content repayment submissions
+    adminListSubmissions: adminProcedure
+      .input(z.object({ status: z.string().optional() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const rows = await db.select().from(creatorCardConsumptions);
+        if (input.status) return rows.filter((r: typeof creatorCardConsumptions.$inferSelect) => r.repaymentStatus === input.status);
+        return rows;
+      }),
+    // Admin: approve or reject a content submission
+    adminReviewSubmission: adminProcedure
+      .input(z.object({
+        consumptionId: z.number(),
+        approved: z.boolean(),
+        adminNote: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        await db.update(creatorCardConsumptions)
+          .set({
+            repaymentStatus: input.approved ? "approved" : "rejected",
+            aiReviewReason: input.adminNote ?? undefined,
+            updatedAt: new Date(),
+          } as any)
+          .where(eqDrizzle(creatorCardConsumptions.id, input.consumptionId));
+        return { success: true };
+      }),
   }),
   store: storeRouter,
   s2b2c: s2b2cRouter,
