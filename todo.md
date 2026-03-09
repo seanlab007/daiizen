@@ -369,3 +369,10 @@
 - [x] Frontend: add "Bulk Quote" link in Navbar (amber, prominent)
 - [x] Admin: Quotes tab to list and manage all quote requests with status badges
 - [x] Admin: Update status form with admin notes, quoted price, and Reply by Email button
+
+## Round 18: High-Margin Chinese Export Products
+
+- [x] Search product images for all categories
+- [x] Add 7 new categories: Industrial Equipment, Electric Vehicles, Consumer Goods, Chemical Materials, Underwater Robotics, Smart Home Appliances, Power Infrastructure
+- [x] Seed 20 high-margin export products with CDN images
+- [x] Verified: 79 total active products in database
