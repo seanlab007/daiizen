@@ -52,6 +52,9 @@ import {
   getAllLowStockThresholds,
   setLowStockThreshold,
   checkAndNotifyLowStock,
+  createQuoteRequest,
+  listQuoteRequests,
+  updateQuoteStatus,
 } from "./db";
 import { invokeLLM } from "./_core/llm";
 import { notifyOwner } from "./_core/notification";
@@ -470,6 +473,60 @@ Key facts: USDD is a stablecoin pegged to USD. Orders typically ship in 7-21 day
     forProduct: publicProcedure
       .input(z.object({ productId: z.number(), categoryId: z.number().nullable().optional() }))
       .query(({ input }) => getBulkDiscountsForProduct(input.productId, input.categoryId)),
+  }),
+
+  // ─── Quote Requests ────────────────────────────────────────────────────────
+  quotes: router({
+    // Public: submit a bulk quote request
+    submit: publicProcedure
+      .input(z.object({
+        orgName: z.string().min(2).max(256),
+        contactName: z.string().min(2).max(128),
+        contactEmail: z.string().email(),
+        contactPhone: z.string().optional(),
+        orgType: z.enum(["ngo", "military", "government", "medical", "other"]),
+        deliveryCountry: z.string().min(2).max(64),
+        deliveryCity: z.string().optional(),
+        deliveryAddress: z.string().optional(),
+        items: z.array(z.object({
+          productId: z.number(),
+          productName: z.string(),
+          quantity: z.number().min(1),
+          unitPriceUsdd: z.string(),
+        })).min(1),
+        urgency: z.enum(["standard", "urgent", "critical"]).default("standard"),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const id = await createQuoteRequest({
+          ...input,
+          userId: ctx.user?.id,
+        });
+        // Notify admin
+        const urgencyLabel = input.urgency === "critical" ? "🚨 CRITICAL" : input.urgency === "urgent" ? "⚡ URGENT" : "📋 Standard";
+        const itemsSummary = input.items.map(i => `${i.productName} × ${i.quantity}`).join(", ");
+        const total = input.items.reduce((s, i) => s + parseFloat(i.unitPriceUsdd) * i.quantity, 0);
+        await notifyOwner({
+          title: `${urgencyLabel} Bulk Quote Request from ${input.orgName}`,
+          content: `Organization: ${input.orgName} (${input.orgType})\nContact: ${input.contactName} <${input.contactEmail}>${input.contactPhone ? " | " + input.contactPhone : ""}\nDelivery: ${input.deliveryCountry}${input.deliveryCity ? ", " + input.deliveryCity : ""}\nItems: ${itemsSummary}\nEstimated Total: ${total.toFixed(2)} USDD\n${input.notes ? "Notes: " + input.notes : ""}\n\nReview in Admin → Quotes tab.`,
+        });
+        return { id };
+      }),
+
+    // Admin: list all quote requests
+    list: adminProcedure
+      .input(z.object({ status: z.string().optional() }))
+      .query(({ input }) => listQuoteRequests(input.status)),
+
+    // Admin: update quote status
+    updateStatus: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["pending", "reviewed", "quoted", "accepted", "rejected"]),
+        adminNotes: z.string().optional(),
+        quotedPriceUsdd: z.string().optional(),
+      }))
+      .mutation(({ input }) => updateQuoteStatus(input.id, input.status, input.adminNotes, input.quotedPriceUsdd)),
   }),
 });
 

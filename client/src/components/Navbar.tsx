@@ -117,6 +117,9 @@ export default function Navbar() {
             <Link href="/emergency" className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors flex items-center gap-1">
               🚨 Emergency
             </Link>
+            <Link href="/quote" className="text-sm font-medium text-amber-600 hover:text-amber-700 transition-colors flex items-center gap-1">
+              📋 Bulk Quote
+            </Link>
           </nav>
 
           {/* Desktop Search */}

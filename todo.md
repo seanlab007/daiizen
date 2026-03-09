@@ -358,3 +358,14 @@
 - [x] Add new subcategories: Drones & UAV, Firearms & Ammo, Military Medical, Military Aircraft
 - [x] Seed 19 new military/tactical products with CDN images
 - [x] Verified: 59 total active products in database
+
+## Round 17: Bulk Quote Request for Institutional Buyers
+
+- [x] DB: add quoteRequests table (orgName, contactEmail, deliveryLocation, items JSON, status, notes, urgency, quotedPrice)
+- [x] Backend: publicProcedure to submit a quote request (notifyOwner on submit with urgency label)
+- [x] Backend: adminProcedure to list all quote requests
+- [x] Backend: adminProcedure to update quote status (pending/reviewed/quoted/accepted/rejected)
+- [x] Frontend: /quote page with multi-item form (product search dropdown + qty + unit price per line)
+- [x] Frontend: add "Bulk Quote" link in Navbar (amber, prominent)
+- [x] Admin: Quotes tab to list and manage all quote requests with status badges
+- [x] Admin: Update status form with admin notes, quoted price, and Reply by Email button

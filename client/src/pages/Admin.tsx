@@ -5,11 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useParams, useLocation } from "wouter";
 import { useState } from "react";
-import { Package, ShoppingBag, BarChart3, Plus, Pencil, Trash2, Sparkles, RefreshCw, CheckCircle, Store, DollarSign, Settings, AlertCircle, Clock, XCircle, CreditCard, Smartphone, Banknote } from "lucide-react";
+import { Package, ShoppingBag, BarChart3, Plus, Pencil, Trash2, Sparkles, RefreshCw, CheckCircle, Store, DollarSign, Settings, AlertCircle, Clock, XCircle, CreditCard, Smartphone, Banknote, FileText, Building2, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 
-type Section = "dashboard" | "products" | "orders" | "categories" | "rates" | "stores" | "deposits" | "marketplace-config" | "payment-config" | "usdd-deposits" | "usdd-withdrawals";
+type Section = "dashboard" | "products" | "orders" | "categories" | "rates" | "stores" | "deposits" | "marketplace-config" | "payment-config" | "usdd-deposits" | "usdd-withdrawals" | "quotes";
 
 const STATUS_COLORS: Record<string, string> = {
   pending_payment: "text-amber-600",
@@ -68,6 +68,9 @@ export default function Admin() {
   const [thresholdForm, setThresholdForm] = useState<{ productId: number; threshold: number } | null>(null);
   const [bulkDiscountForm, setBulkDiscountForm] = useState<{ id?: number; categoryId: string; minQty: string; discountPct: string; label: string } | null>(null);
   const [stockEditForm, setStockEditForm] = useState<{ productId: number; stock: number } | null>(null);
+  const [quoteStatusForm, setQuoteStatusForm] = useState<{ id: number; status: string; adminNotes: string; quotedPrice: string } | null>(null);
+  const { data: quoteRequests = [], refetch: refetchQuotes } = trpc.quotes.list.useQuery({ status: undefined }, { enabled: section === "quotes" && isAuthenticated && user?.role === "admin" });
+  const updateQuoteStatusMutation = trpc.quotes.updateStatus.useMutation({ onSuccess: () => { refetchQuotes(); setQuoteStatusForm(null); toast.success("Quote status updated"); } });
 
   const createProductMutation = trpc.admin.createProduct.useMutation({ onSuccess: () => { refetchProducts(); setShowNewProduct(false); toast.success("Product created"); } });
   const deleteProductMutation = trpc.admin.deleteProduct.useMutation({ onSuccess: () => { refetchProducts(); toast.success("Product deleted"); } });
@@ -99,6 +102,7 @@ export default function Admin() {
     { id: "payment-config", label: t("admin.payment_config"), icon: CreditCard },
     { id: "usdd-deposits", label: t("admin.usdd_deposits"), icon: DollarSign },
     { id: "usdd-withdrawals", label: t("admin.usdd_withdrawals"), icon: Banknote },
+    { id: "quotes", label: "Bulk Quotes", icon: FileText },
   ];
 
   return (
@@ -793,6 +797,150 @@ export default function Admin() {
           </div>
         )}
 
+        {/* Bulk Quote Requests */}
+        {section === "quotes" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Bulk Quote Requests</h2>
+              <span className="text-sm text-muted-foreground">{quoteRequests.length} total</span>
+            </div>
+            {quoteRequests.length === 0 ? (
+              <div className="text-center py-16 text-muted-foreground">
+                <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p>No quote requests yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {(quoteRequests as Array<{
+                  id: number; orgName: string; contactName: string; contactEmail: string;
+                  contactPhone: string | null; orgType: string; deliveryCountry: string;
+                  deliveryCity: string | null; items: unknown; estimatedTotalUsdd: string | null;
+                  urgency: string; notes: string | null; status: string; adminNotes: string | null;
+                  quotedPriceUsdd: string | null; createdAt: Date;
+                }>).map((q) => (
+                  <div key={q.id} className="border border-border rounded-lg p-4 space-y-3">
+                    <div className="flex flex-wrap items-start gap-3 justify-between">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-amber-600" />
+                        <span className="font-semibold">{q.orgName}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          q.orgType === "military" ? "bg-slate-200 text-slate-700" :
+                          q.orgType === "ngo" ? "bg-green-100 text-green-700" :
+                          q.orgType === "government" ? "bg-blue-100 text-blue-700" :
+                          "bg-gray-100 text-gray-700"
+                        }`}>{q.orgType.toUpperCase()}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          q.urgency === "critical" ? "bg-red-100 text-red-700" :
+                          q.urgency === "urgent" ? "bg-amber-100 text-amber-700" :
+                          "bg-blue-100 text-blue-700"
+                        }`}>{q.urgency.toUpperCase()}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${
+                          q.status === "pending" ? "bg-amber-50 text-amber-700 border-amber-200" :
+                          q.status === "reviewed" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                          q.status === "quoted" ? "bg-purple-50 text-purple-700 border-purple-200" :
+                          q.status === "accepted" ? "bg-green-50 text-green-700 border-green-200" :
+                          "bg-red-50 text-red-700 border-red-200"
+                        }`}>{q.status}</span>
+                        <span className="text-xs text-muted-foreground">#{q.id}</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <span className="font-medium text-foreground">{q.contactName}</span>
+                        <span>·</span>
+                        <a href={`mailto:${q.contactEmail}`} className="text-blue-600 hover:underline">{q.contactEmail}</a>
+                        {q.contactPhone && <span>· {q.contactPhone}</span>}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <MapPin className="w-3.5 h-3.5" />
+                        <span>{q.deliveryCountry}{q.deliveryCity ? `, ${q.deliveryCity}` : ""}</span>
+                      </div>
+                    </div>
+                    {/* Items */}
+                    <div className="bg-muted/40 rounded p-2 text-sm">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Requested Items:</p>
+                      <div className="space-y-0.5">
+                        {(Array.isArray(q.items) ? q.items : []).map((item: { productName: string; quantity: number; unitPriceUsdd: string }, i: number) => (
+                          <div key={i} className="flex justify-between">
+                            <span>{item.productName} × {item.quantity}</span>
+                            <span className="font-mono text-amber-600">{(parseFloat(item.unitPriceUsdd) * item.quantity).toFixed(2)} USDD</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="border-t border-border mt-1.5 pt-1.5 flex justify-between font-medium">
+                        <span>Estimated Total</span>
+                        <span className="text-amber-600 font-mono">{q.estimatedTotalUsdd} USDD</span>
+                      </div>
+                    </div>
+                    {q.notes && <p className="text-sm text-muted-foreground italic">Notes: {q.notes}</p>}
+                    {q.adminNotes && <p className="text-sm text-blue-700 bg-blue-50 rounded px-2 py-1">Admin Notes: {q.adminNotes}</p>}
+                    {q.quotedPriceUsdd && <p className="text-sm font-medium">Quoted Price: <span className="text-amber-600 font-mono">{q.quotedPriceUsdd} USDD</span></p>}
+                    {/* Actions */}
+                    {quoteStatusForm?.id === q.id ? (
+                      <div className="space-y-2 border border-border rounded p-3 bg-muted/30">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs">New Status</Label>
+                            <select
+                              className="w-full mt-1 border border-border rounded px-2 py-1.5 text-sm bg-background"
+                              value={quoteStatusForm.status}
+                              onChange={e => setQuoteStatusForm(prev => prev ? { ...prev, status: e.target.value } : prev)}
+                            >
+                              {["pending","reviewed","quoted","accepted","rejected"].map(s => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Quoted Price (USDD)</Label>
+                            <Input
+                              className="mt-1 h-8 text-sm"
+                              placeholder="e.g. 12500.00"
+                              value={quoteStatusForm.quotedPrice}
+                              onChange={e => setQuoteStatusForm(prev => prev ? { ...prev, quotedPrice: e.target.value } : prev)}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Admin Notes</Label>
+                          <textarea
+                            className="w-full mt-1 border border-border rounded px-2 py-1.5 text-sm bg-background resize-none"
+                            rows={2}
+                            placeholder="Internal notes or message to buyer..."
+                            value={quoteStatusForm.adminNotes}
+                            onChange={e => setQuoteStatusForm(prev => prev ? { ...prev, adminNotes: e.target.value } : prev)}
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => updateQuoteStatusMutation.mutate({
+                            id: quoteStatusForm.id,
+                            status: quoteStatusForm.status as "pending" | "reviewed" | "quoted" | "accepted" | "rejected",
+                            adminNotes: quoteStatusForm.adminNotes || undefined,
+                            quotedPriceUsdd: quoteStatusForm.quotedPrice || undefined,
+                          })} disabled={updateQuoteStatusMutation.isPending}>
+                            Save
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setQuoteStatusForm(null)}>Cancel</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setQuoteStatusForm({ id: q.id, status: q.status, adminNotes: q.adminNotes ?? "", quotedPrice: q.quotedPriceUsdd ?? "" })}>
+                          Update Status
+                        </Button>
+                        <a href={`mailto:${q.contactEmail}?subject=Re: Bulk Quote Request #${q.id} - ${q.orgName}`}>
+                          <Button size="sm" variant="outline">Reply by Email</Button>
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

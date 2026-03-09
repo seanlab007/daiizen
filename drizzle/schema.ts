@@ -607,3 +607,38 @@ export const lowStockThresholds = mysqlTable("lowStockThresholds", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type LowStockThreshold = typeof lowStockThresholds.$inferSelect;
+
+// ─── Bulk Quote Requests ──────────────────────────────────────────────────────
+// Institutional buyers (NGOs, military procurement) submit bulk quote requests
+
+export const quoteRequests = mysqlTable("quoteRequests", {
+  id: int("id").autoincrement().primaryKey(),
+  // Submitter info
+  orgName: varchar("orgName", { length: 256 }).notNull(),
+  contactName: varchar("contactName", { length: 128 }).notNull(),
+  contactEmail: varchar("contactEmail", { length: 320 }).notNull(),
+  contactPhone: varchar("contactPhone", { length: 64 }),
+  orgType: mysqlEnum("orgType", ["ngo", "military", "government", "medical", "other"]).notNull(),
+  // Delivery
+  deliveryCountry: varchar("deliveryCountry", { length: 64 }).notNull(),
+  deliveryCity: varchar("deliveryCity", { length: 128 }),
+  deliveryAddress: text("deliveryAddress"),
+  // Items: JSON array of { productId, productName, quantity, unitPriceUsdd }
+  items: json("items").notNull(),
+  // Total estimated value
+  estimatedTotalUsdd: decimal("estimatedTotalUsdd", { precision: 18, scale: 2 }),
+  // Additional info
+  urgency: mysqlEnum("urgency", ["standard", "urgent", "critical"]).default("standard").notNull(),
+  notes: text("notes"),
+  // Status workflow: pending → reviewed → quoted → accepted | rejected
+  status: mysqlEnum("status", ["pending", "reviewed", "quoted", "accepted", "rejected"]).default("pending").notNull(),
+  adminNotes: text("adminNotes"),
+  quotedPriceUsdd: decimal("quotedPriceUsdd", { precision: 18, scale: 2 }),
+  // Optional: link to logged-in user
+  userId: int("userId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type QuoteRequest = typeof quoteRequests.$inferSelect;
+export type InsertQuoteRequest = typeof quoteRequests.$inferInsert;

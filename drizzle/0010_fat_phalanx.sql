@@ -1,0 +1,22 @@
+CREATE TABLE `quoteRequests` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`orgName` varchar(256) NOT NULL,
+	`contactName` varchar(128) NOT NULL,
+	`contactEmail` varchar(320) NOT NULL,
+	`contactPhone` varchar(64),
+	`orgType` enum('ngo','military','government','medical','other') NOT NULL,
+	`deliveryCountry` varchar(64) NOT NULL,
+	`deliveryCity` varchar(128),
+	`deliveryAddress` text,
+	`items` json NOT NULL,
+	`estimatedTotalUsdd` decimal(18,2),
+	`urgency` enum('standard','urgent','critical') NOT NULL DEFAULT 'standard',
+	`notes` text,
+	`status` enum('pending','reviewed','quoted','accepted','rejected') NOT NULL DEFAULT 'pending',
+	`adminNotes` text,
+	`quotedPriceUsdd` decimal(18,2),
+	`userId` int,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `quoteRequests_id` PRIMARY KEY(`id`)
+);

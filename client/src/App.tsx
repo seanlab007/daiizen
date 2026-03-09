@@ -37,6 +37,7 @@ const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const WalletPage = lazy(() => import("./pages/WalletPage"));
 const SellerWithdrawal = lazy(() => import("./pages/SellerWithdrawal"));
 const Emergency = lazy(() => import("./pages/Emergency"));
+const QuoteRequest = lazy(() => import("./pages/QuoteRequest"));
 
 function PageLoader() {
   return (
@@ -78,6 +79,7 @@ function Router() {
         <Route path="/wallet" component={WalletPage} />
         <Route path="/seller/withdrawal" component={SellerWithdrawal} />
         <Route path="/emergency" component={Emergency} />
+        <Route path="/quote" component={QuoteRequest} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>

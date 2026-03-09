@@ -1210,3 +1210,81 @@ export async function checkAndNotifyLowStock(productId: number, productName: str
     content: `Product "${productName}" (ID: ${productId}) has only ${currentStock} units remaining (threshold: ${row.threshold}). Please restock soon.`,
   });
 }
+
+// ─── Quote Requests ───────────────────────────────────────────────────────────
+
+export interface QuoteItem {
+  productId: number;
+  productName: string;
+  quantity: number;
+  unitPriceUsdd: string;
+}
+
+export interface CreateQuoteInput {
+  orgName: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone?: string;
+  orgType: "ngo" | "military" | "government" | "medical" | "other";
+  deliveryCountry: string;
+  deliveryCity?: string;
+  deliveryAddress?: string;
+  items: QuoteItem[];
+  urgency: "standard" | "urgent" | "critical";
+  notes?: string;
+  userId?: number;
+}
+
+export async function createQuoteRequest(input: CreateQuoteInput): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { quoteRequests } = await import("../drizzle/schema");
+  const estimatedTotal = input.items.reduce(
+    (sum, item) => sum + parseFloat(item.unitPriceUsdd) * item.quantity,
+    0
+  );
+  const [result] = await db.insert(quoteRequests).values({
+    orgName: input.orgName,
+    contactName: input.contactName,
+    contactEmail: input.contactEmail,
+    contactPhone: input.contactPhone,
+    orgType: input.orgType,
+    deliveryCountry: input.deliveryCountry,
+    deliveryCity: input.deliveryCity,
+    deliveryAddress: input.deliveryAddress,
+    items: input.items as unknown as Record<string, unknown>[],
+    estimatedTotalUsdd: estimatedTotal.toFixed(2),
+    urgency: input.urgency,
+    notes: input.notes,
+    userId: input.userId,
+  });
+  return (result as { insertId: number }).insertId;
+}
+
+export async function listQuoteRequests(status?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const { quoteRequests } = await import("../drizzle/schema");
+  if (status) {
+    return db.select().from(quoteRequests)
+      .where(eq(quoteRequests.status, status as "pending" | "reviewed" | "quoted" | "accepted" | "rejected"))
+      .orderBy(desc(quoteRequests.createdAt));
+  }
+  return db.select().from(quoteRequests).orderBy(desc(quoteRequests.createdAt));
+}
+
+export async function updateQuoteStatus(
+  id: number,
+  status: "pending" | "reviewed" | "quoted" | "accepted" | "rejected",
+  adminNotes?: string,
+  quotedPriceUsdd?: string
+) {
+  const db = await getDb();
+  if (!db) return;
+  const { quoteRequests } = await import("../drizzle/schema");
+  await db.update(quoteRequests).set({
+    status,
+    ...(adminNotes !== undefined ? { adminNotes } : {}),
+    ...(quotedPriceUsdd !== undefined ? { quotedPriceUsdd } : {}),
+  }).where(eq(quoteRequests.id, id));
+}
