@@ -3,9 +3,8 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
-import { createContext } from "./context";
+import { createContextFromRequest } from "./context-supabase";
 import { serveStatic, setupVite } from "./vite";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -36,14 +35,19 @@ async function startServer() {
   // Health check for Render / uptime monitoring
   app.get("/api/health", (_req, res) => res.json({ status: "ok", ts: Date.now() }));
 
-  // OAuth callback under /api/oauth/callback
-  registerOAuthRoutes(app);
   // tRPC API
   app.use(
     "/api/trpc",
     createExpressMiddleware({
       router: appRouter,
-      createContext,
+      createContext: async ({ req }) => {
+        const url = `http://localhost${req.url}`;
+        const headers = new Headers();
+        for (const [key, value] of Object.entries(req.headers)) {
+          if (typeof value === "string") headers.set(key, value);
+        }
+        return createContextFromRequest(new Request(url, { headers }));
+      },
     })
   );
   // development mode uses Vite, production mode uses static files
