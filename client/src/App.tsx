@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import Navbar from "./components/Navbar";
 import ExchangeRateTicker from "./components/ExchangeRateTicker";
 import ChatWidget from "./components/ChatWidget";
+import Login from "./pages/Login";
 import { lazy, Suspense } from "react";
 
 // Lazy-load heavy pages
@@ -35,6 +36,7 @@ function Router() {
     <Suspense fallback={<PageLoader />}>
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/login" component={Login} />
         <Route path="/products" component={Products} />
         <Route path="/products/:slug" component={ProductDetail} />
         <Route path="/cart" component={Cart} />
