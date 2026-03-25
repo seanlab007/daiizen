@@ -482,3 +482,12 @@
 - [x] Frontend: dynamic <meta> OG tags injected via useEffect on /group-buy/:token page
 - [x] Frontend: og:title (product + discount%), og:description (X people joined, Y spots left), og:image, og:url, twitter:card
 - [x] Client-side OG injection (sufficient for WhatsApp/Telegram when JS executes before share)
+
+## 支付方式修改：只接受 DMB DARK 和 USDD
+- [x] Payment.tsx: 移除 Alipay、WeChat Pay、LianLian Pay，只保留 USDD 和 DARK 两种支付方式
+- [x] Payment.tsx: 添加 DARK 代币支付详情（网络、地址、说明）
+- [x] Checkout.tsx: 更新支付方式说明，明确只接受 USDD 和 DARK
+- [x] DepositPayment.tsx: 移除 alipay/wechat/unionpay，只保留 USDD 和 DARK
+- [x] server/routers/payment.ts: 更新 paymentMethod 枚举为 usdd | dark
+- [x] Home.tsx: 更新 USDD Banner，说明接受 USDD 和 DARK 两种支付
+- [x] 全站添加"Daiizen 唯一接受 DMB DARK 和 USDD 支付"的说明

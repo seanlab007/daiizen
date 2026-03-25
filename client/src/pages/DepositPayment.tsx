@@ -4,42 +4,54 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { CheckCircle, Upload, Copy, ArrowLeft, Smartphone, CreditCard, Banknote } from "lucide-react";
+import { CheckCircle, Copy, ArrowLeft, ShieldCheck, ExternalLink } from "lucide-react";
 
-const PAYMENT_ICONS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  alipay: { label: "支付宝", color: "bg-blue-500", icon: <Smartphone className="w-5 h-5" /> },
-  wechat: { label: "微信支付", color: "bg-green-500", icon: <Smartphone className="w-5 h-5" /> },
-  unionpay: { label: "银联转账", color: "bg-red-500", icon: <CreditCard className="w-5 h-5" /> },
-  usdd: { label: "USDD (TRC-20)", color: "bg-purple-500", icon: <Banknote className="w-5 h-5" /> },
-};
+// ─── Payment Addresses ────────────────────────────────────────────────────────
+const USDD_ADDRESS = import.meta.env.VITE_USDD_PAYMENT_ADDRESS || "TRX_USDD_ADDRESS_PLACEHOLDER";
+const DARK_ADDRESS = import.meta.env.VITE_DARK_PAYMENT_ADDRESS || "TRX_DARK_ADDRESS_PLACEHOLDER";
+
+type DepositMethod = "usdd" | "dark";
+
+const METHODS: { id: DepositMethod; label: string; sublabel: string; icon: string; address: string; color: string }[] = [
+  {
+    id: "usdd",
+    label: "USDD",
+    sublabel: "Stablecoin · TRON TRC-20",
+    icon: "🪙",
+    address: USDD_ADDRESS,
+    color: "border-emerald-400 bg-emerald-50",
+  },
+  {
+    id: "dark",
+    label: "DARK",
+    sublabel: "DMB Token · TRON TRC-20",
+    icon: "🌑",
+    address: DARK_ADDRESS,
+    color: "border-purple-400 bg-purple-50",
+  },
+];
 
 export default function DepositPayment() {
   const { depositId } = useParams<{ depositId: string }>();
   const [, navigate] = useLocation();
   const { user, loading } = useAuth();
 
-  const [selectedMethod, setSelectedMethod] = useState<string>("");
-  const [amountCny, setAmountCny] = useState("");
-  const [screenshotUrl, setScreenshotUrl] = useState("");
+  const [selectedMethod, setSelectedMethod] = useState<DepositMethod>("usdd");
   const [transferNote, setTransferNote] = useState("");
-  const [uploading, setUploading] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-
-  const { data: paymentMethods, isLoading: methodsLoading } = trpc.payment.getPaymentMethods.useQuery();
 
   const submitMutation = trpc.payment.submitDepositPayment.useMutation({
     onSuccess: () => {
       setSubmitted(true);
-      toast.success("提交成功: 我们将在1-2个工作日内审核您的转账凭证");
+      toast.success("Submitted! We will review your transfer within 1-2 business days.");
     },
     onError: (err) => {
-      toast.error("提交失败: " + err.message);
+      toast.error("Submission failed: " + err.message);
     },
   });
 
@@ -62,13 +74,13 @@ export default function DepositPayment() {
         <Card className="max-w-md w-full text-center">
           <CardContent className="pt-8 pb-8">
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">转账凭证已提交</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Transfer Submitted</h2>
             <p className="text-gray-600 mb-6">
-              我们将在 <strong>1-2 个工作日</strong>内审核您的转账凭证。
-              审核通过后，您的店铺将自动激活。
+              We will review your transfer within <strong>1-2 business days</strong>.
+              Your store will be activated once confirmed.
             </p>
             <Button onClick={() => navigate("/seller/dashboard")} className="w-full">
-              返回卖家后台
+              Back to Seller Dashboard
             </Button>
           </CardContent>
         </Card>
@@ -76,45 +88,19 @@ export default function DepositPayment() {
     );
   }
 
-  const selectedConfig = paymentMethods?.find((m: any) => m.method === selectedMethod);
+  const currentMethod = METHODS.find((m) => m.id === selectedMethod)!;
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("文件过大: 截图不能超过5MB");
-      return;
-    }
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("上传失败");
-      const { url } = await res.json();
-      setScreenshotUrl(url);
-      toast.success("上传成功: 转账截图已上传");
-    } catch {
-      toast.error("上传失败: 请重试");
-    } finally {
-      setUploading(false);
-    }
+  const handleCopyAddress = () => {
+    navigator.clipboard.writeText(currentMethod.address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast.success("Address copied!");
   };
 
   const handleSubmit = () => {
-    if (!selectedMethod) {
-      toast.error("请选择支付方式");
-      return;
-    }
-    if (selectedMethod !== "usdd" && !screenshotUrl) {
-      toast.error("请上传转账截图");
-      return;
-    }
     submitMutation.mutate({
       depositId: parseInt(depositId),
       paymentMethod: selectedMethod as any,
-      paymentAmountCny: amountCny ? parseFloat(amountCny) : undefined,
-      transferScreenshotUrl: screenshotUrl || undefined,
       transferNote: transferNote || undefined,
     });
   };
@@ -123,203 +109,138 @@ export default function DepositPayment() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-12 px-4">
       <div className="max-w-2xl mx-auto">
         <Button variant="ghost" onClick={() => navigate("/seller/dashboard")} className="mb-6">
-          <ArrowLeft className="w-4 h-4 mr-2" /> 返回
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back
         </Button>
 
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">缴纳开店保证金</h1>
-          <p className="text-gray-600 mt-2">选择支付方式，完成转账后上传凭证，等待审核激活店铺</p>
+          <h1 className="text-3xl font-bold text-gray-900">Pay Store Deposit</h1>
+          <p className="text-gray-600 mt-2">Transfer your deposit using DARK or USDD, then submit for review.</p>
         </div>
 
-        {/* Step 1: Select payment method */}
+        {/* ── Exclusive Payment Notice ─────────────────────────────────────── */}
+        <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 mb-6 flex items-start gap-3">
+          <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-gray-900">
+              Daiizen exclusively accepts DMB DARK &amp; USDD payments
+            </p>
+            <p className="text-xs text-gray-600 mt-0.5">
+              We do not accept Alipay, WeChat Pay, bank transfers, or any fiat currency.
+              Both DARK and USDD run on the TRON (TRC-20) network and are issued by{" "}
+              <a href="https://www.darkmatterbank.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                Dark Matter Bank (DMB)
+              </a>.
+            </p>
+          </div>
+        </div>
+
+        {/* Step 1: Select payment token */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-lg">第一步：选择支付方式</CardTitle>
+            <CardTitle className="text-lg">Step 1: Choose Payment Token</CardTitle>
           </CardHeader>
           <CardContent>
-            {methodsLoading ? (
-              <div className="text-center py-4 text-gray-500">加载中...</div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3">
-                {paymentMethods?.map((method: any) => {
-                  const config = PAYMENT_ICONS[method.method] ?? { label: method.method, color: "bg-gray-500", icon: null };
-                  return (
-                    <button
-                      key={method.method}
-                      onClick={() => setSelectedMethod(method.method)}
-                      className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
-                        selectedMethod === method.method
-                          ? "border-primary bg-primary/5"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div className={`w-10 h-10 rounded-full ${config.color} flex items-center justify-center text-white`}>
-                        {config.icon}
-                      </div>
-                      <div className="text-left">
-                        <div className="font-semibold text-sm">{config.label}</div>
-                        <div className="text-xs text-gray-500">{method.accountName}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-                {/* USDD option always available */}
+            <div className="grid grid-cols-2 gap-3">
+              {METHODS.map((m) => (
                 <button
-                  onClick={() => setSelectedMethod("usdd")}
+                  key={m.id}
+                  onClick={() => setSelectedMethod(m.id)}
                   className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
-                    selectedMethod === "usdd"
-                      ? "border-primary bg-primary/5"
-                      : "border-gray-200 hover:border-gray-300"
+                    selectedMethod === m.id
+                      ? `${m.color} border-current font-medium`
+                      : "border-gray-200 bg-white hover:border-gray-300"
                   }`}
                 >
-                  <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center text-white">
-                    <Banknote className="w-5 h-5" />
-                  </div>
+                  <span className="text-2xl">{m.icon}</span>
                   <div className="text-left">
-                    <div className="font-semibold text-sm">USDD (TRC-20)</div>
-                    <div className="text-xs text-gray-500">加密货币转账</div>
+                    <div className="font-semibold text-sm text-gray-900">{m.label}</div>
+                    <div className="text-xs text-gray-500">{m.sublabel}</div>
                   </div>
                 </button>
-              </div>
-            )}
+              ))}
+            </div>
           </CardContent>
         </Card>
 
-        {/* Step 2: Payment details */}
-        {selectedMethod && selectedConfig && selectedMethod !== "usdd" && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-lg">第二步：扫码转账</CardTitle>
-              <CardDescription>
-                请向以下账户转账保证金，转账完成后上传截图
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">收款账户</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold">{selectedConfig.accountName}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        navigator.clipboard.writeText(selectedConfig.accountNumber);
-                        toast.success("已复制");
-                      }}
-                    >
-                      <Copy className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-                {selectedConfig.accountNumber && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">账号/手机号</span>
-                    <span className="font-mono font-semibold">{selectedConfig.accountNumber}</span>
-                  </div>
-                )}
-                {selectedConfig.qrCodeUrl && (
-                  <div className="text-center pt-2">
-                    <img
-                      src={selectedConfig.qrCodeUrl}
-                      alt="收款二维码"
-                      className="w-48 h-48 mx-auto rounded-lg border"
-                    />
-                    <p className="text-xs text-gray-500 mt-2">扫描二维码付款</p>
-                  </div>
-                )}
+        {/* Step 2: Transfer instructions */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg">Step 2: Transfer {currentMethod.label}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-xl bg-gray-50 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">Network</span>
+                <span className="text-sm font-semibold text-gray-900 flex items-center gap-1">
+                  TRON (TRC-20)
+                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full ml-1">TRC-20</span>
+                </span>
               </div>
-
               <div>
-                <Label htmlFor="amountCny">实际转账金额（人民币）</Label>
-                <Input
-                  id="amountCny"
-                  type="number"
-                  placeholder="请输入实际转账金额"
-                  value={amountCny}
-                  onChange={(e) => setAmountCny(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="transferNote">备注信息（选填）</Label>
-                <Input
-                  id="transferNote"
-                  placeholder="如：开店保证金 + 您的用户名"
-                  value={transferNote}
-                  onChange={(e) => setTransferNote(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Step 3: Upload screenshot */}
-        {selectedMethod && selectedMethod !== "usdd" && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-lg">第三步：上传转账截图</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {screenshotUrl ? (
-                <div className="space-y-3">
-                  <img src={screenshotUrl} alt="转账截图" className="max-h-64 rounded-lg border mx-auto block" />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setScreenshotUrl("")}
-                    className="w-full"
+                <span className="text-sm text-gray-500 block mb-1">Deposit Address</span>
+                <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2.5">
+                  <span className="text-xs font-mono text-gray-800 flex-1 break-all leading-relaxed">
+                    {currentMethod.address}
+                  </span>
+                  <button
+                    onClick={handleCopyAddress}
+                    className="shrink-0 text-gray-400 hover:text-gray-700 transition-colors"
                   >
-                    重新上传
-                  </Button>
+                    {copied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                  </button>
                 </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 transition-all">
-                  <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-500">点击上传转账截图</span>
-                  <span className="text-xs text-gray-400 mt-1">支持 JPG/PNG，最大 5MB</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={uploading} />
-                </label>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {selectedMethod === "usdd" && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-lg">USDD 转账说明</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="bg-purple-50 rounded-xl p-4 text-sm text-purple-800">
-                <p className="font-semibold mb-2">请通过 TRC-20 网络转账 USDD 至平台地址</p>
-                <p className="text-xs">转账完成后，请在备注中填写您的用户名，我们将在核实后激活您的店铺</p>
               </div>
-              <div>
-                <Label htmlFor="transferNote">转账备注（请填写用户名）</Label>
-                <Input
-                  id="transferNote"
-                  placeholder="您的用户名"
-                  value={transferNote}
-                  onChange={(e) => setTransferNote(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
 
-        {selectedMethod && (
-          <Button
-            onClick={handleSubmit}
-            disabled={submitMutation.isPending || uploading}
-            className="w-full h-12 text-base font-semibold"
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-1">
+              <p className="font-semibold">⚠️ Important</p>
+              <p>• Only send <strong>{currentMethod.label}</strong> on <strong>TRON (TRC-20)</strong> network</p>
+              <p>• Sending other tokens or using other networks will result in permanent loss of funds</p>
+              <p>• Include your username in the transfer memo/note</p>
+            </div>
+
+            <div>
+              <Label htmlFor="transferNote">Transfer Note (enter your username)</Label>
+              <Input
+                id="transferNote"
+                placeholder="Your username"
+                value={transferNote}
+                onChange={(e) => setTransferNote(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Step 3: Submit */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg">Step 3: Confirm Submission</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-600 mb-4">
+              After completing the transfer, click the button below. We will verify the transaction on-chain and activate your store within 1-2 business days.
+            </p>
+            <Button
+              onClick={handleSubmit}
+              disabled={submitMutation.isPending}
+              className="w-full h-12 text-base font-semibold"
+            >
+              {submitMutation.isPending ? "Submitting..." : "Submit Transfer Confirmation"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <div className="text-center pb-4">
+          <a
+            href="https://www.darkmatterbank.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-primary hover:underline flex items-center justify-center gap-1"
           >
-            {submitMutation.isPending ? "提交中..." : "提交转账凭证"}
-          </Button>
-        )}
+            Get DARK &amp; USDD at Dark Matter Bank <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
       </div>
     </div>
   );

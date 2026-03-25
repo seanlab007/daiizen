@@ -432,35 +432,44 @@ export default function Home() {
       {/* Hot Group Buys Section */}
       <HotGroupBuys />
 
-      {/* USDD Banner */}
+      {/* Payment Banner: DARK & USDD */}
       <section className="py-16">
         <div className="container">
           <div className="rounded-2xl bg-gradient-to-br from-primary/10 via-accent/20 to-background border border-primary/20 p-8 md:p-12">
-            <div className="max-w-xl">
-              <div className="text-3xl mb-4">💎</div>
+            <div className="max-w-2xl">
+              <div className="text-3xl mb-4">🌑💎</div>
               <h2 className="text-2xl font-serif font-semibold text-foreground mb-3">
-                Why Pay with USDD?
+                Daiizen Exclusively Accepts DARK &amp; USDD
               </h2>
-              <p className="text-muted-foreground mb-6 leading-relaxed">
-                USDD is a decentralized stablecoin pegged to the US dollar, issued by Dark Matter Bank.
-                Unlike local currencies in high-inflation countries, USDD maintains stable purchasing power —
-                so the price you see today is the price you pay.
+              <p className="text-muted-foreground mb-2 leading-relaxed">
+                Daiizen is a crypto-native marketplace. We <strong className="text-foreground">only accept DMB DARK and USDD</strong> as payment —
+                no Alipay, WeChat Pay, credit cards, or any fiat currency.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <p className="text-muted-foreground mb-6 leading-relaxed">
+                Both tokens are issued by{" "}
+                <a href="https://www.darkmatterbank.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">Dark Matter Bank (DMB)</a>{" "}
+                and run on the TRON (TRC-20) network. USDD is a stablecoin pegged 1:1 to USD;
+                DARK is the DMB platform token with growing utility across the ecosystem.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 {[
-                  { label: "Stable Value", desc: "Pegged 1:1 to USD" },
-                  { label: "Fast Settlement", desc: "Blockchain-powered" },
-                  { label: "Global Access", desc: "No bank required" },
-                ].map(({ label, desc }) => (
-                  <div key={label} className="bg-background/60 rounded-lg p-3 border border-border/50">
-                    <p className="text-sm font-medium text-foreground">{label}</p>
-                    <p className="text-xs text-muted-foreground">{desc}</p>
+                  { icon: "🪙", label: "USDD", desc: "Stablecoin pegged 1:1 to USD · TRON TRC-20" },
+                  { icon: "🌑", label: "DARK", desc: "DMB platform token · TRON TRC-20" },
+                  { label: "Stable Prices", desc: "No inflation risk — prices in USD-equivalent" },
+                  { label: "Global Access", desc: "No bank account required" },
+                ].map(({ icon, label, desc }) => (
+                  <div key={label} className="bg-background/60 rounded-lg p-3 border border-border/50 flex items-start gap-2">
+                    {icon && <span className="text-xl shrink-0">{icon}</span>}
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{label}</p>
+                      <p className="text-xs text-muted-foreground">{desc}</p>
+                    </div>
                   </div>
                 ))}
               </div>
               <Button asChild variant="outline">
                 <a href="https://www.darkmatterbank.com" target="_blank" rel="noopener noreferrer" className="gap-2">
-                  Get USDD at Dark Matter Bank
+                  Get DARK &amp; USDD at Dark Matter Bank
                   <ArrowRight className="w-4 h-4" />
                 </a>
               </Button>

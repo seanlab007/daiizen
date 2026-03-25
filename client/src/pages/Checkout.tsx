@@ -182,10 +182,18 @@ export default function Checkout() {
                     <CreditCard className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-foreground">Manual TRC-20 Transfer</p>
-                    <p className="text-xs text-muted-foreground">Send USDD directly, submit TX hash for confirmation</p>
+                    <p className="text-sm font-medium text-foreground">Manual TRC-20 Transfer (USDD or DARK)</p>
+                    <p className="text-xs text-muted-foreground">Send USDD or DARK directly via TRC-20, submit TX hash</p>
                   </div>
                 </div>
+              </div>
+
+              {/* Exclusive payment notice */}
+              <div className="p-3 rounded-xl bg-muted/40 border border-border/50 text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">ℹ️ Daiizen exclusively accepts DARK &amp; USDD</span>
+                {" — "}
+                No Alipay, WeChat Pay, credit cards, or fiat currency. Both tokens run on TRON (TRC-20) and are issued by{" "}
+                <a href="https://www.darkmatterbank.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">Dark Matter Bank (DMB)</a>.
               </div>
             </div>
           </div>

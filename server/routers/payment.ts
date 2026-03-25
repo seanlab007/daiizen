@@ -35,7 +35,7 @@ export const paymentRouter = router({
     .input(
       z.object({
         depositId: z.number().int().positive(),
-        paymentMethod: z.enum(["usdd", "alipay", "wechat", "unionpay"]),
+        paymentMethod: z.enum(["usdd", "dark"]),
         paymentAmountCny: z.number().positive().optional(),
         transferScreenshotUrl: z.string().url().optional(),
         transferNote: z.string().max(200).optional(),
@@ -81,7 +81,7 @@ export const paymentRouter = router({
   adminUpdatePaymentConfig: adminProcedure
     .input(
       z.object({
-        method: z.enum(["alipay", "wechat", "unionpay"]),
+        method: z.enum(["usdd", "dark"]),
         accountName: z.string().max(100).optional(),
         accountNumber: z.string().max(100).optional(),
         qrCodeUrl: z.string().url().nullable().optional(),
