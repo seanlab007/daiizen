@@ -70,10 +70,10 @@ export const onRequest = async (ctx: {
   if (url.pathname === "/api/public/categories") {
     const { data, error } = await supabase
       .from("categories")
-      .select("id, slug, nameEn, nameZh, nameEs, nameAr, nameRu, icon, sortOrder")
+      .select("id, slug, nameEn, nameEs, nameTr, namePt, nameAr, nameRu, iconUrl, sortOrder")
       .order("sortOrder", { ascending: true });
     if (error) return json({ error: error.message }, origin, 500);
-    return json(data ?? [], origin);
+    return json({ data: data ?? [] }, origin);
   }
 
   // Route: GET /api/public/products
@@ -88,16 +88,16 @@ export const onRequest = async (ctx: {
     let query = supabase
       .from("products")
       .select(
-        "id, slug, nameEn, nameZh, namePt, nameEs, nameAr, nameRu, " +
-        "descriptionEn, descriptionZh, descriptionEs, " +
-        "priceUsdd, originalPriceUsdd, imageUrls, " +
+        "id, slug, nameEn, namePt, nameEs, nameAr, nameRu, nameTr, " +
+        "descriptionEn, descriptionEs, descriptionPt, " +
+        "priceUsdd, images, " +
         "categoryId, stock, isActive, createdAt",
         { count: "exact" }
       )
-      .eq("isActive", true);
+      .eq("isActive", 1);
 
     if (search) {
-      query = query.or(`nameEn.ilike.%${search}%,nameZh.ilike.%${search}%`);
+      query = query.or(`nameEn.ilike.%${search}%`);
     }
     if (category) {
       // join via category slug
@@ -118,26 +118,30 @@ export const onRequest = async (ctx: {
     const { data, count, error } = await query;
     if (error) return json({ error: error.message }, origin, 500);
 
+    const langCap = lang.charAt(0).toUpperCase() + lang.slice(1);
     return json(
       {
-        products: (data ?? []).map((p) => ({
+        data: (data ?? []).map((p) => ({
           id: p.id,
           slug: p.slug,
-          name: (p as Record<string, unknown>)[`name${lang.charAt(0).toUpperCase() + lang.slice(1)}`] || p.nameEn,
+          name: (p as Record<string, unknown>)[`name${langCap}`] || p.nameEn,
           nameEn: p.nameEn,
           description:
-            (p as Record<string, unknown>)[`description${lang.charAt(0).toUpperCase() + lang.slice(1)}`] ||
+            (p as Record<string, unknown>)[`description${langCap}`] ||
             p.descriptionEn,
-          price: p.priceUsdd,
-          originalPrice: p.originalPriceUsdd,
-          imageUrls: p.imageUrls,
+          priceUsdd: p.priceUsdd,
+          images: p.images ?? [],
           categoryId: p.categoryId,
           stock: p.stock,
+          isActive: p.isActive,
+          createdAt: p.createdAt,
         })),
-        total: count ?? 0,
-        page,
-        limit,
-        totalPages: Math.ceil((count ?? 0) / limit),
+        pagination: {
+          page,
+          limit,
+          total: count ?? 0,
+          totalPages: Math.ceil((count ?? 0) / limit),
+        },
       },
       origin
     );
@@ -151,10 +155,10 @@ export const onRequest = async (ctx: {
       .from("products")
       .select("*")
       .eq("slug", slug)
-      .eq("isActive", true)
+      .eq("isActive", 1)
       .single();
     if (error || !data) return json({ error: "Not found" }, origin, 404);
-    return json(data, origin);
+    return json({ data }, origin);
   }
 
   return json({ error: "Not found" }, origin, 404);
