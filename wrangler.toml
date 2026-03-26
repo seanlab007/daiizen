@@ -5,3 +5,6 @@ pages_build_output_dir = "dist/client"
 
 [vars]
 NODE_ENV = "production"
+SUPABASE_URL = "https://fczherphuixpdjuevzsh.supabase.co"
+# SUPABASE_SERVICE_ROLE_KEY  → set via CF Dashboard > Settings > Environment Variables (secret)
+# MAOYAN_LINK_SECRET         → set via CF Dashboard > Settings > Environment Variables (secret)
