@@ -1,103 +1,22 @@
 import { useLanguage } from "@/contexts/LanguageContext";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Link, useParams, useLocation } from "wouter";
+import { Link, useParams } from "wouter";
 import { useState } from "react";
-import { ShoppingCart, ArrowLeft, Package, Plus, Minus, Star, MessageSquare, Building2, Flame, Copy, Check } from "lucide-react";
+import { ShoppingCart, ArrowLeft, Package, Plus, Minus } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-
-function StarRating({ rating, size = 4 }: { rating: number; size?: number }) {
-  return (
-    <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((s) => (
-        <Star
-          key={s}
-          className={`w-${size} h-${size} ${
-            s <= rating ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30"
-          }`}
-        />
-      ))}
-    </div>
-  );
-}
-
-function ReviewsList({ productSlug }: { productSlug: string }) {
-  const { data: product } = trpc.products.bySlug.useQuery({ slug: productSlug });
-  // We'll use a separate query for reviews by product ID via storeProductId
-  // For direct products (non-store), we show a placeholder
-  if (!product) return null;
-  return null; // Direct products don't have storeProductId reviews yet
-}
 
 export default function ProductDetail() {
   const { t, language } = useLanguage();
   const { isAuthenticated } = useAuth();
   const params = useParams<{ slug: string }>();
-  const [, navigate] = useLocation();
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [showGroupBuyDialog, setShowGroupBuyDialog] = useState(false);
-  const [groupType, setGroupType] = useState<"standard" | "flash" | "万人团">("standard");
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [createdGroupToken, setCreatedGroupToken] = useState<string | null>(null);
 
   const { data: product, isLoading, error } = trpc.products.bySlug.useQuery({ slug: params.slug });
   const utils = trpc.useUtils();
-
-  // Bulk discounts for this product
-  const { data: bulkDiscounts = [] } = trpc.bulkDiscounts.forProduct.useQuery(
-    { productId: product?.id ?? 0, categoryId: product?.categoryId ?? null },
-    { enabled: !!product }
-  );
-
-  // Calculate discounted price based on current quantity
-  const applicableDiscount = bulkDiscounts
-    .filter(d => quantity >= d.minQty)
-    .sort((a, b) => parseFloat(b.discountPct) - parseFloat(a.discountPct))[0] ?? null;
-  const discountedPrice = applicableDiscount
-    ? Number(product?.priceUsdd ?? 0) * (1 - parseFloat(applicableDiscount.discountPct) / 100)
-    : null;
-
-  const createGroupBuyMutation = trpc.groupBuy.create.useMutation({
-    onSuccess: (data) => {
-      setCreatedGroupToken(data.shareToken);
-      toast.success("Group buy created! Share the link to get more people.");
-    },
-    onError: (err) => toast.error(err.message || "Failed to create group buy"),
-  });
-
-  const handleCreateGroupBuy = () => {
-    if (!isAuthenticated) { window.location.href = getLoginUrl(); return; }
-    if (!product) return;
-    createGroupBuyMutation.mutate({
-      productId: product.id,
-      productName: product.nameEn,
-      productSlug: product.slug,
-      originalPrice: Number(product.priceUsdd),
-      groupType,
-      imageUrl: images[0] ?? undefined,
-      quantity,
-    });
-  };
-
-  const groupBuyShareUrl = createdGroupToken ? `${window.location.origin}/group-buy/${createdGroupToken}` : "";
-
-  const handleCopyLink = () => {
-    if (groupBuyShareUrl) {
-      navigator.clipboard.writeText(groupBuyShareUrl);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2000);
-    }
-  };
 
   const addToCartMutation = trpc.cart.add.useMutation({
     onSuccess: () => {
@@ -205,42 +124,9 @@ export default function ProductDetail() {
 
             {/* Price */}
             <div className="flex items-baseline gap-3">
-              {discountedPrice ? (
-                <>
-                  <span className="text-3xl font-bold text-red-600">{discountedPrice.toFixed(2)}</span>
-                  <span className="text-lg text-muted-foreground line-through">{Number(product.priceUsdd).toFixed(2)}</span>
-                  <span className="text-sm font-semibold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
-                    -{applicableDiscount!.discountPct}%
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="text-3xl font-bold text-primary">{Number(product.priceUsdd).toFixed(2)}</span>
-                </>
-              )}
+              <span className="text-3xl font-bold text-primary">{Number(product.priceUsdd).toFixed(2)}</span>
               <span className="text-lg text-muted-foreground">USDD</span>
             </div>
-
-            {/* Bulk Discount Tiers */}
-            {bulkDiscounts.length > 0 && (
-              <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
-                <p className="text-xs font-semibold text-orange-800 mb-2">📦 Bulk Purchase Discounts</p>
-                <div className="flex flex-wrap gap-2">
-                  {bulkDiscounts.map((d) => (
-                    <div
-                      key={d.id}
-                      className={`text-xs px-2 py-1 rounded-full border font-medium transition-colors ${
-                        quantity >= d.minQty
-                          ? "bg-orange-600 text-white border-orange-600"
-                          : "bg-white text-orange-700 border-orange-300"
-                      }`}
-                    >
-                      {d.label || `Buy ${d.minQty}+: ${d.discountPct}% off`}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Stock */}
             <div className="flex items-center gap-2">
@@ -262,83 +148,37 @@ export default function ProductDetail() {
               </div>
             )}
 
-            {/* Quantity + Add to Cart / B2B Inquiry */}
+            {/* Quantity + Add to Cart */}
             {product.stock > 0 && (
               <div className="space-y-3">
-                {/* B2B Inquiry badge for high-value items */}
-                {Number(product.priceUsdd) >= 10000 && (
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200">
-                    <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
-                    <span className="text-xs text-blue-800 font-medium">
-                      This is a B2B product. Contact us for pricing, MOQ, and shipping terms.
-                    </span>
-                  </div>
-                )}
-
-                {Number(product.priceUsdd) < 10000 ? (
-                  // Standard Add to Cart for consumer products
-                  <>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm text-muted-foreground">{t("products.qty")}:</span>
-                      <div className="flex items-center gap-1 border border-border rounded-lg">
-                        <button
-                          onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                          className="w-8 h-8 flex items-center justify-center hover:bg-muted transition-colors rounded-l-lg"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="w-8 text-center text-sm font-medium">{quantity}</span>
-                        <button
-                          onClick={() => setQuantity((q) => Math.min(product.stock, q + 1))}
-                          className="w-8 h-8 flex items-center justify-center hover:bg-muted transition-colors rounded-r-lg"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                    <Button
-                      size="lg"
-                      className="w-full gap-2"
-                      onClick={handleAddToCart}
-                      disabled={addToCartMutation.isPending}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">{t("products.qty")}:</span>
+                  <div className="flex items-center gap-1 border border-border rounded-lg">
+                    <button
+                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                      className="w-8 h-8 flex items-center justify-center hover:bg-muted transition-colors rounded-l-lg"
                     >
-                      <ShoppingCart className="w-4 h-4" />
-                      {t("products.add_cart")}
-                    </Button>
-                  </>
-                ) : (
-                  // B2B Inquiry flow for high-value products (>$10,000)
-                  <div className="space-y-2">
-                    <Link href={`/quote?product=${encodeURIComponent(product.nameEn)}&price=${product.priceUsdd}`}>
-                      <Button size="lg" className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-                        <MessageSquare className="w-4 h-4" />
-                        Request Bulk Quote
-                      </Button>
-                    </Link>
-                    <Link href="/parallel-export">
-                      <Button size="lg" variant="outline" className="w-full gap-2 border-blue-300 text-blue-700 hover:bg-blue-50">
-                        🌏 View Parallel Export Deals
-                      </Button>
-                    </Link>
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="w-8 text-center text-sm font-medium">{quantity}</span>
+                    <button
+                      onClick={() => setQuantity((q) => Math.min(product.stock, q + 1))}
+                      className="w-8 h-8 flex items-center justify-center hover:bg-muted transition-colors rounded-r-lg"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
                   </div>
-                )}
+                </div>
+                <Button
+                  size="lg"
+                  className="w-full gap-2"
+                  onClick={handleAddToCart}
+                  disabled={addToCartMutation.isPending}
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  {t("products.add_cart")}
+                </Button>
               </div>
-            )}
-
-            {/* Start Group Buy button — only for consumer products */}
-            {Number(product.priceUsdd) < 10000 && product.stock > 0 && (
-              <Button
-                variant="outline"
-                className="w-full gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
-                onClick={() => {
-                  if (!isAuthenticated) { window.location.href = getLoginUrl(); return; }
-                  setCreatedGroupToken(null);
-                  setShowGroupBuyDialog(true);
-                }}
-              >
-                <Flame className="w-4 h-4" />
-                🔥 Start Group Buy — More People, Lower Price
-              </Button>
             )}
 
             {/* USDD info */}
@@ -349,131 +189,6 @@ export default function ProductDetail() {
           </div>
         </div>
       </div>
-
-      {/* Group Buy Dialog */}
-      <Dialog open={showGroupBuyDialog} onOpenChange={setShowGroupBuyDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Flame className="w-5 h-5 text-orange-500" />
-              Start a Group Buy
-            </DialogTitle>
-            <DialogDescription>
-              Invite others to join your group — the more people, the bigger the discount (up to 50% off)!
-            </DialogDescription>
-          </DialogHeader>
-
-          {!createdGroupToken ? (
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium mb-2">Product</p>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                  {images[0] && <img src={images[0]} alt="" className="w-12 h-12 object-cover rounded" />}
-                  <div>
-                    <p className="text-sm font-semibold">{product?.nameEn}</p>
-                    <p className="text-xs text-muted-foreground">{Number(product?.priceUsdd).toFixed(2)} USDD</p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium mb-2">Group Type</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["standard", "flash", "万人团"] as const).map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => setGroupType(type)}
-                      className={`p-2 rounded-lg border text-xs font-medium transition-colors ${
-                        groupType === type
-                          ? "bg-orange-500 text-white border-orange-500"
-                          : "border-border hover:bg-muted"
-                      }`}
-                    >
-                      {type === "standard" && "🛒 Standard\n72h"}
-                      {type === "flash" && "⚡ Flash\n24h"}
-                      {type === "万人团" && "👑 万人团\n30 days"}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {groupType === "standard" && "Standard group buy, expires in 72 hours. Tier discounts: 2 people = 8%, 10 people = 12%, 100 people = 25%"}
-                  {groupType === "flash" && "Flash sale, expires in 24 hours. Fast-growing virtual count for urgency."}
-                  {groupType === "万人团" && "Mega group buy targeting 10,000 participants. Up to 50% discount. Expires in 30 days."}
-                </p>
-              </div>
-
-              <div className="p-3 rounded-lg bg-orange-50 border border-orange-200">
-                <p className="text-xs font-semibold text-orange-800 mb-1">📊 Discount Tiers</p>
-                <div className="grid grid-cols-3 gap-1 text-xs text-orange-700">
-                  <span>1 person: 5% off</span>
-                  <span>10 people: 12% off</span>
-                  <span>100 people: 25% off</span>
-                  <span>500 people: 30% off</span>
-                  <span>1,000 people: 35% off</span>
-                  <span>10,000 people: 50% off</span>
-                </div>
-              </div>
-
-              <Button
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-                onClick={handleCreateGroupBuy}
-                disabled={createGroupBuyMutation.isPending}
-              >
-                {createGroupBuyMutation.isPending ? "Creating..." : "🔥 Create Group Buy"}
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-center">
-                <p className="text-2xl mb-1">🎉</p>
-                <p className="font-semibold text-green-800">Group Buy Created!</p>
-                <p className="text-xs text-green-700 mt-1">Share the link below to invite others and unlock deeper discounts.</p>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium mb-2">Share Link</p>
-                <div className="flex items-center gap-2">
-                  <input
-                    readOnly
-                    value={groupBuyShareUrl}
-                    className="flex-1 text-xs p-2 rounded border border-border bg-muted/30 font-mono"
-                  />
-                  <Button size="sm" variant="outline" onClick={handleCopyLink}>
-                    {copiedLink ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <a
-                  href={`https://wa.me/?text=${encodeURIComponent(`🔥 Join my group buy on Daiizen — ${product?.nameEn}! More people = lower price! ${groupBuyShareUrl}`)}`}
-                  target="_blank" rel="noopener noreferrer"
-                >
-                  <Button variant="outline" className="w-full text-xs gap-1 border-green-300 text-green-700 hover:bg-green-50">
-                    📱 WhatsApp
-                  </Button>
-                </a>
-                <a
-                  href={`https://t.me/share/url?url=${encodeURIComponent(groupBuyShareUrl)}&text=${encodeURIComponent(`🔥 Join my group buy — ${product?.nameEn}!`)}`}
-                  target="_blank" rel="noopener noreferrer"
-                >
-                  <Button variant="outline" className="w-full text-xs gap-1 border-blue-300 text-blue-700 hover:bg-blue-50">
-                    ✈️ Telegram
-                  </Button>
-                </a>
-              </div>
-
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => navigate(`/group-buy/${createdGroupToken}`)}
-              >
-                View Group Buy Page →
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

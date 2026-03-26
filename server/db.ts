@@ -1,6 +1,7 @@
 import { and, desc, eq, ilike, inArray, like, or, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, products, categories, cartItems, orders, orderItems, addresses, exchangeRates, chatMessages, userNotifications } from "../drizzle/schema";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import { InsertUser, users, products, categories, cartItems, orders, orderItems, addresses, exchangeRates, chatMessages, userNotifications, usddWallets, usddTransactions, referralRelations, referralRewards, referralCodes, storeProducts, stores, lowStockThresholds, withdrawalRequests, productReviews, storeOrders } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { nanoid } from "nanoid";
 
@@ -9,7 +10,8 @@ let _db: ReturnType<typeof drizzle> | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const client = postgres(process.env.DATABASE_URL, { max: 10 });
+      _db = drizzle(client);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -42,7 +44,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     else if (user.openId === ENV.ownerOpenId) { values.role = "admin"; updateSet.role = "admin"; }
     if (!values.lastSignedIn) values.lastSignedIn = new Date();
     if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
-    await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
+    await db.insert(users).values(values).onConflictDoUpdate({ target: users.openId, set: updateSet });
   } catch (error) {
     console.error("[Database] Failed to upsert user:", error);
     throw error;
@@ -85,9 +87,9 @@ export async function getProducts(input: {
   if (input.search) {
     conditions.push(
       or(
-        like(products.nameEn, `%${input.search}%`),
-        like(products.nameEs, `%${input.search}%`),
-        like(products.descriptionEn, `%${input.search}%`)
+        ilike(products.nameEn, `%${input.search}%`),
+        ilike(products.nameEs, `%${input.search}%`),
+        ilike(products.descriptionEn, `%${input.search}%`)
       )!
     );
   }
@@ -545,12 +547,13 @@ export async function getAdminStats() {
   };
 }
 
+// ─── USDD Wallet + Business Functions (merged from Manus) ───────────────────
+
 // ─── USDD Wallet ──────────────────────────────────────────────────────────────
 
 export async function getOrCreateUsddWallet(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const { usddWallets } = await import("../drizzle/schema");
   const existing = await db.select().from(usddWallets).where(eq(usddWallets.userId, userId)).limit(1);
   if (existing[0]) return existing[0];
   await db.insert(usddWallets).values({ userId, balanceUsdd: "0", totalDepositedUsdd: "0", totalSpentUsdd: "0" });
@@ -571,7 +574,6 @@ export async function createUsddDeposit(userId: number, input: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const { usddTransactions } = await import("../drizzle/schema");
   const wallet = await getOrCreateUsddWallet(userId);
   await db.insert(usddTransactions).values({
     userId,
@@ -593,7 +595,6 @@ export async function createUsddDeposit(userId: number, input: {
 export async function confirmUsddDeposit(txId: number, adminNote?: string) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const { usddTransactions, usddWallets } = await import("../drizzle/schema");
   const [tx] = await db.select().from(usddTransactions).where(eq(usddTransactions.id, txId)).limit(1);
   if (!tx || tx.status !== "pending" || tx.type !== "deposit") throw new Error("Invalid transaction");
   const wallet = await getOrCreateUsddWallet(tx.userId);
@@ -614,7 +615,6 @@ export async function confirmUsddDeposit(txId: number, adminNote?: string) {
 export async function rejectUsddDeposit(txId: number, adminNote: string) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const { usddTransactions } = await import("../drizzle/schema");
   await db.update(usddTransactions).set({ status: "rejected", adminNote }).where(eq(usddTransactions.id, txId));
   return { success: true };
 }
@@ -622,7 +622,6 @@ export async function rejectUsddDeposit(txId: number, adminNote: string) {
 export async function getUserUsddTransactions(userId: number, limit = 20, offset = 0) {
   const db = await getDb();
   if (!db) return [];
-  const { usddTransactions } = await import("../drizzle/schema");
   return db.select().from(usddTransactions)
     .where(eq(usddTransactions.userId, userId))
     .orderBy(desc(usddTransactions.createdAt))
@@ -633,7 +632,6 @@ export async function getUserUsddTransactions(userId: number, limit = 20, offset
 export async function getAllPendingUsddDeposits() {
   const db = await getDb();
   if (!db) return [];
-  const { usddTransactions } = await import("../drizzle/schema");
   return db.select().from(usddTransactions)
     .where(and(eq(usddTransactions.type, "deposit"), eq(usddTransactions.status, "pending")))
     .orderBy(desc(usddTransactions.createdAt));
@@ -649,7 +647,6 @@ export async function createWithdrawalRequest(input: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const { withdrawalRequests, stores } = await import("../drizzle/schema");
   // Check store has enough balance
   const [store] = await db.select().from(stores).where(eq(stores.id, input.storeId)).limit(1);
   if (!store) throw new Error("Store not found");
@@ -672,7 +669,6 @@ export async function createWithdrawalRequest(input: {
 export async function getWithdrawalsByStore(storeId: number) {
   const db = await getDb();
   if (!db) return [];
-  const { withdrawalRequests } = await import("../drizzle/schema");
   return db.select().from(withdrawalRequests)
     .where(eq(withdrawalRequests.storeId, storeId))
     .orderBy(desc(withdrawalRequests.createdAt));
@@ -681,7 +677,6 @@ export async function getWithdrawalsByStore(storeId: number) {
 export async function getAllWithdrawalRequests(statusFilter?: string) {
   const db = await getDb();
   if (!db) return [];
-  const { withdrawalRequests } = await import("../drizzle/schema");
   const conditions = statusFilter
     ? [eq(withdrawalRequests.status, statusFilter as "pending" | "approved" | "rejected" | "paid")]
     : [];
@@ -693,7 +688,6 @@ export async function getAllWithdrawalRequests(statusFilter?: string) {
 export async function approveWithdrawal(id: number, adminNote?: string) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const { withdrawalRequests } = await import("../drizzle/schema");
   await db.update(withdrawalRequests).set({
     status: "approved",
     adminNote,
@@ -705,7 +699,6 @@ export async function approveWithdrawal(id: number, adminNote?: string) {
 export async function rejectWithdrawal(id: number, rejectionReason: string) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const { withdrawalRequests, stores } = await import("../drizzle/schema");
   const [req] = await db.select().from(withdrawalRequests).where(eq(withdrawalRequests.id, id)).limit(1);
   if (!req || req.status !== "pending") throw new Error("Invalid withdrawal request");
   // Refund the amount back to store balance
@@ -725,7 +718,6 @@ export async function rejectWithdrawal(id: number, rejectionReason: string) {
 export async function markWithdrawalPaid(id: number, txHash: string, adminNote?: string) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const { withdrawalRequests } = await import("../drizzle/schema");
   await db.update(withdrawalRequests).set({
     status: "paid",
     txHash,
@@ -748,7 +740,6 @@ export async function markWithdrawalPaid(id: number, txHash: string, adminNote?:
 export async function payOrderWithBalance(userId: number, addressId: number, notes?: string) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const { usddWallets, usddTransactions, stores, storeOrders, orderItems: orderItemsTable, storeProducts } = await import("../drizzle/schema");
 
   // 1. Create the order first (cart → order, status = pending_payment)
   const order = await createOrder(userId, addressId, notes);
@@ -790,7 +781,7 @@ export async function payOrderWithBalance(userId: number, addressId: number, not
 
   // 6. Credit seller earnings for store products in this order
   // Get order items and find which store each product belongs to
-  const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, order.id));
+  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
   const storeEarningsMap = new Map<number, number>(); // storeId → earnings
 
   for (const item of items) {
@@ -830,9 +821,8 @@ export async function payOrderWithBalance(userId: number, addressId: number, not
 export async function creditSellerEarningsForOrder(orderId: number) {
   const db = await getDb();
   if (!db) return;
-  const { stores, storeProducts, orderItems: orderItemsTable } = await import("../drizzle/schema");
 
-  const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, orderId));
+  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
   const storeEarningsMap = new Map<number, number>();
 
   for (const item of items) {
@@ -873,7 +863,6 @@ export async function submitReview(data: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const { productReviews } = await import("../drizzle/schema");
   // Check if review already exists for this order item
   const [existing] = await db.select().from(productReviews)
     .where(eq(productReviews.orderItemId, data.orderItemId))
@@ -895,7 +884,6 @@ export async function submitReview(data: {
 export async function getReviewsByProduct(storeProductId: number) {
   const db = await getDb();
   if (!db) return [];
-  const { productReviews } = await import("../drizzle/schema");
   return db.select().from(productReviews)
     .where(eq(productReviews.storeProductId, storeProductId))
     .orderBy(desc(productReviews.createdAt))
@@ -905,7 +893,6 @@ export async function getReviewsByProduct(storeProductId: number) {
 export async function getReviewsByStore(storeId: number) {
   const db = await getDb();
   if (!db) return [];
-  const { productReviews } = await import("../drizzle/schema");
   return db.select().from(productReviews)
     .where(eq(productReviews.storeId, storeId))
     .orderBy(desc(productReviews.createdAt))
@@ -915,7 +902,6 @@ export async function getReviewsByStore(storeId: number) {
 export async function getMyReviews(userId: number) {
   const db = await getDb();
   if (!db) return [];
-  const { productReviews } = await import("../drizzle/schema");
   return db.select().from(productReviews)
     .where(eq(productReviews.userId, userId))
     .orderBy(desc(productReviews.createdAt));
@@ -925,7 +911,6 @@ export async function getReviewableItems(userId: number) {
   // Returns order items from completed orders that haven't been reviewed yet
   const db = await getDb();
   if (!db) return [];
-  const { productReviews } = await import("../drizzle/schema");
   const completedOrders = await db.select().from(orders)
     .where(and(eq(orders.userId, userId), eq(orders.status, "completed")));
   if (!completedOrders.length) return [];
@@ -945,7 +930,6 @@ export async function getReviewableItems(userId: number) {
 export async function processReferralRewardsForOrder(orderId: number, buyerUserId: number) {
   const db = await getDb();
   if (!db) return;
-  const { referralRelations, referralRewards, referralCodes, usddWallets, usddTransactions } = await import("../drizzle/schema");
 
   // Check if buyer has a referral relation
   const [relation] = await db.select().from(referralRelations)
@@ -1013,7 +997,8 @@ export async function processReferralRewardsForOrder(orderId: number, buyerUserI
         balanceUsdd: rewardAmount.toFixed(6),
         totalDepositedUsdd: rewardAmount.toFixed(6),
         totalSpentUsdd: "0",
-      }).onDuplicateKeyUpdate({
+      }).onConflictDoUpdate({
+        target: usddWallets.userId,
         set: {
           balanceUsdd: rewardAmount.toFixed(6),
           totalDepositedUsdd: rewardAmount.toFixed(6),
@@ -1168,7 +1153,6 @@ export async function deleteBulkDiscount(id: number) {
 export async function getLowStockThreshold(productId: number) {
   const db = await getDb();
   if (!db) return null;
-  const { lowStockThresholds } = await import("../drizzle/schema");
   const [row] = await db.select().from(lowStockThresholds).where(eq(lowStockThresholds.productId, productId)).limit(1);
   return row ?? null;
 }
@@ -1176,15 +1160,13 @@ export async function getLowStockThreshold(productId: number) {
 export async function setLowStockThreshold(productId: number, threshold: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const { lowStockThresholds } = await import("../drizzle/schema");
   await db.insert(lowStockThresholds).values({ productId, threshold })
-    .onDuplicateKeyUpdate({ set: { threshold } });
+    .onConflictDoUpdate({ target: lowStockThresholds.productId, set: { threshold } });
 }
 
 export async function getAllLowStockThresholds() {
   const db = await getDb();
   if (!db) return [];
-  const { lowStockThresholds } = await import("../drizzle/schema");
   return db.select().from(lowStockThresholds);
 }
 
@@ -1192,7 +1174,6 @@ export async function getAllLowStockThresholds() {
 export async function checkAndNotifyLowStock(productId: number, productName: string, currentStock: number) {
   const db = await getDb();
   if (!db) return;
-  const { lowStockThresholds } = await import("../drizzle/schema");
   const [row] = await db.select().from(lowStockThresholds).where(eq(lowStockThresholds.productId, productId)).limit(1);
   if (!row) return;
   if (currentStock >= row.threshold) return;

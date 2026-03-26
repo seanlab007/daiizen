@@ -1,7 +1,15 @@
-import { getLoginUrl } from "@/const";
-import { trpc } from "@/lib/trpc";
-import { TRPCClientError } from "@trpc/client";
-import { useCallback, useEffect, useMemo } from "react";
+import { supabase } from "@/lib/supabase";
+import { useCallback, useEffect, useState } from "react";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
+
+export type AuthUser = {
+  id: string;
+  openId: string;
+  name: string | null;
+  email: string | null;
+  role: "user" | "admin";
+  loginMethod: string | null;
+};
 
 type UseAuthOptions = {
   redirectOnUnauthenticated?: boolean;
@@ -9,76 +17,70 @@ type UseAuthOptions = {
 };
 
 export function useAuth(options?: UseAuthOptions) {
-  const { redirectOnUnauthenticated = false, redirectPath = getLoginUrl() } =
+  const { redirectOnUnauthenticated = false, redirectPath = "/login" } =
     options ?? {};
-  const utils = trpc.useUtils();
 
-  const meQuery = trpc.auth.me.useQuery(undefined, {
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  const logoutMutation = trpc.auth.logout.useMutation({
-    onSuccess: () => {
-      utils.auth.me.setData(undefined, null);
-    },
-  });
-
-  const logout = useCallback(async () => {
-    try {
-      await logoutMutation.mutateAsync();
-    } catch (error: unknown) {
-      if (
-        error instanceof TRPCClientError &&
-        error.data?.code === "UNAUTHORIZED"
-      ) {
-        return;
-      }
-      throw error;
-    } finally {
-      utils.auth.me.setData(undefined, null);
-      await utils.auth.me.invalidate();
-    }
-  }, [logoutMutation, utils]);
-
-  const state = useMemo(() => {
-    localStorage.setItem(
-      "manus-runtime-user-info",
-      JSON.stringify(meQuery.data)
-    );
+  const mapSupabaseUser = (sbUser: SupabaseUser | null): AuthUser | null => {
+    if (!sbUser) return null;
     return {
-      user: meQuery.data ?? null,
-      loading: meQuery.isLoading || logoutMutation.isPending,
-      error: meQuery.error ?? logoutMutation.error ?? null,
-      isAuthenticated: Boolean(meQuery.data),
+      id: sbUser.id,
+      openId: sbUser.id,
+      name:
+        sbUser.user_metadata?.full_name ||
+        sbUser.user_metadata?.name ||
+        sbUser.email?.split("@")[0] ||
+        null,
+      email: sbUser.email || null,
+      role: "user",
+      loginMethod: sbUser.app_metadata?.provider || null,
     };
-  }, [
-    meQuery.data,
-    meQuery.error,
-    meQuery.isLoading,
-    logoutMutation.error,
-    logoutMutation.isPending,
-  ]);
+  };
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(mapSupabaseUser(session?.user ?? null));
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(mapSupabaseUser(session?.user ?? null));
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!redirectOnUnauthenticated) return;
-    if (meQuery.isLoading || logoutMutation.isPending) return;
-    if (state.user) return;
+    if (loading) return;
+    if (user) return;
     if (typeof window === "undefined") return;
     if (window.location.pathname === redirectPath) return;
+    window.location.href = redirectPath;
+  }, [redirectOnUnauthenticated, redirectPath, loading, user]);
 
-    window.location.href = redirectPath
-  }, [
-    redirectOnUnauthenticated,
-    redirectPath,
-    logoutMutation.isPending,
-    meQuery.isLoading,
-    state.user,
-  ]);
+  const logout = useCallback(async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(String(err)));
+    }
+  }, []);
 
   return {
-    ...state,
-    refresh: () => meQuery.refetch(),
+    user,
+    loading,
+    error,
+    isAuthenticated: Boolean(user),
     logout,
+    refresh: async () => {
+      const { data } = await supabase.auth.getUser();
+      setUser(mapSupabaseUser(data.user));
+    },
   };
 }

@@ -38,7 +38,8 @@ async function buildDownloadUrl(
     method: "GET",
     headers: buildAuthHeaders(apiKey),
   });
-  return (await response.json()).url;
+  const data = await response.json() as { url: string };
+  return data.url;
 }
 
 function ensureTrailingSlash(value: string): string {
@@ -57,7 +58,7 @@ function toFormData(
   const blob =
     typeof data === "string"
       ? new Blob([data], { type: contentType })
-      : new Blob([data as any], { type: contentType });
+      : new Blob([data as unknown as ArrayBuffer], { type: contentType });
   const form = new FormData();
   form.append("file", blob, fileName || "file");
   return form;
@@ -88,8 +89,8 @@ export async function storagePut(
       `Storage upload failed (${response.status} ${response.statusText}): ${message}`
     );
   }
-  const url = (await response.json()).url;
-  return { key, url };
+  const result = await response.json() as { url: string };
+  return { key, url: result.url };
 }
 
 export async function storageGet(relKey: string): Promise<{ key: string; url: string; }> {

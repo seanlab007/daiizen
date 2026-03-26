@@ -1,4 +1,5 @@
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import {
   stores,
   storeProducts,
@@ -19,7 +20,7 @@ import { eq, and, desc, like, sql } from "drizzle-orm";
 let _db: ReturnType<typeof drizzle> | null = null;
 async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
-    _db = drizzle(process.env.DATABASE_URL);
+    _db = drizzle(postgres(process.env.DATABASE_URL!, { max: 10 }));
   }
   return _db!;
 }
@@ -35,7 +36,7 @@ export async function setPlatformConfig(key: string, value: string, description?
   await (await getDb())
     .insert(platformConfig)
     .values({ key, value, description })
-    .onDuplicateKeyUpdate({ set: { value, ...(description ? { description } : {}) } });
+    .onConflictDoUpdate({ target: platformConfig.key, set: { value, ...(description ? { description } : {}) } });
 }
 
 export async function getAllPlatformConfig() {

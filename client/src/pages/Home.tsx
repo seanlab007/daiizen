@@ -2,9 +2,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { ArrowRight, ShieldCheck, Zap, Globe, Package, Users, Clock, TrendingDown } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
+import { ArrowRight, ShieldCheck, Zap, Globe, Package } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
@@ -18,84 +16,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   "toys": "🧸",
   "beauty": "💄",
   "sports": "⚽",
-  "emergency-supplies": "🚨",
 };
-
-// ─── Hot Group Buys Section ──────────────────────────────────────────────────
-function HotGroupBuys() {
-  const { data: groups = [], isLoading } = trpc.groupBuy.list.useQuery();
-  if (isLoading || groups.length === 0) return null;
-
-  const topGroups = groups.slice(0, 3);
-
-  return (
-    <section className="py-12 bg-gradient-to-br from-orange-950/40 to-background">
-      <div className="container">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-orange-500/20">
-              <TrendingDown className="h-5 w-5 text-orange-400" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold">🔥 热门拼团</h2>
-              <p className="text-sm text-muted-foreground">人越多，折扣越大 — 最高享 50% 折扣</p>
-            </div>
-          </div>
-          <Link href="/group-buy">
-            <Button variant="outline" size="sm" className="gap-2 border-orange-500/30 text-orange-400 hover:bg-orange-500/10">
-              查看全部 <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {topGroups.map((group: any) => {
-            const timeLeft = Math.max(0, new Date(group.expiresAt).getTime() - Date.now());
-            const hoursLeft = Math.floor(timeLeft / 3600000);
-            const imgUrl = (() => {
-              try {
-                const imgs = typeof group.imageUrl === "string" ? JSON.parse(group.imageUrl) : group.imageUrl;
-                return Array.isArray(imgs) ? imgs[0] : (typeof imgs === "string" ? imgs : null);
-              } catch { return typeof group.imageUrl === "string" ? group.imageUrl : null; }
-            })();
-            return (
-              <Link key={group.id} href={`/group-buy/${group.shareToken}`}>
-                <div className="rounded-xl border border-orange-500/20 bg-card/80 hover:border-orange-500/50 transition-all hover:scale-[1.02] cursor-pointer overflow-hidden">
-                  <div className="aspect-video bg-muted relative">
-                    {imgUrl ? (
-                      <img src={imgUrl} alt={group.productName} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Package className="h-10 w-10 text-muted-foreground" />
-                      </div>
-                    )}
-                    <Badge className="absolute top-2 left-2 bg-orange-600 text-white">
-                      -{group.currentTier?.discountPct ?? 5}%
-                    </Badge>
-                  </div>
-                  <div className="p-4 space-y-2">
-                    <h3 className="font-semibold line-clamp-1">{group.productName}</h3>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-lg font-bold text-orange-400">{group.currentPrice?.toFixed(2)} USDD</span>
-                      <span className="text-sm text-muted-foreground line-through">{group.originalPrice?.toFixed(2)}</span>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><Users className="h-3 w-3" />{group.displayCount?.toLocaleString()} 人已占位</span>
-                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{hoursLeft}h 剩余</span>
-                      </div>
-                      <Progress value={group.progress ?? 0} className="h-1.5" />
-                      <p className="text-xs text-orange-300">还需 {Math.max(0, group.targetCount - (group.displayCount ?? 0))} 人成团</p>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-}
 
 export default function Home() {
   const { t, language } = useLanguage();
@@ -103,10 +24,6 @@ export default function Home() {
   const { isAuthenticated } = useAuth();
   const { data: featuredProducts = [] } = trpc.products.featured.useQuery({ limit: 8 });
   const { data: categories = [] } = trpc.categories.list.useQuery();
-  const { data: emergencyProducts = [] } = trpc.products.list.useQuery(
-    { categorySlug: "emergency-supplies", limit: 4, page: 1 },
-    { select: (d) => d.items }
-  );
   const utils = trpc.useUtils();
   const addToCartMutation = trpc.cart.add.useMutation({
     onSuccess: () => { toast.success("Added to cart!"); utils.cart.count.invalidate(); },
@@ -282,194 +199,35 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Emergency Supplies Section */}
-      {emergencyProducts.length > 0 && (
-        <section className="py-16">
-          <div className="container">
-            {/* Banner Header */}
-            <div className="rounded-2xl overflow-hidden mb-8 bg-gradient-to-r from-red-950 via-red-900 to-orange-900 border border-red-800/50">
-              <div className="px-6 py-8 md:px-10 md:py-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-2xl">🚨</span>
-                    <span className="text-xs font-semibold tracking-widest text-red-300 uppercase">战区急需 · Crisis Zone Essentials</span>
-                  </div>
-                  <h2 className="text-2xl md:text-3xl font-serif font-bold text-white mb-2">
-                    Emergency Supplies
-                  </h2>
-                  <p className="text-red-200/80 text-sm max-w-md">
-                    Critical supplies for conflict zones, disaster relief, and emergency preparedness.
-                    Bulk discounts available — buy 5+ items for up to 15% off.
-                  </p>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-                  <Button asChild className="bg-red-600 hover:bg-red-500 text-white border-0 gap-2">
-                    <Link href="/products?category=emergency-supplies">
-                      Shop All Emergency Supplies
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Product Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              {emergencyProducts.map((product) => (
-                <Link key={product.id} href={`/products/${product.slug}`}>
-                  <div className="group rounded-xl border border-red-200/30 bg-card overflow-hidden hover:border-red-400/50 hover:shadow-md transition-all relative">
-                    {/* Emergency badge */}
-                    <div className="absolute top-2 left-2 z-10">
-                      <span className="text-[10px] font-bold bg-red-600 text-white px-1.5 py-0.5 rounded-full">🚨 EMERGENCY</span>
-                    </div>
-                    <div className="aspect-square bg-muted/40 overflow-hidden">
-                      {product.images && (product.images as string[]).length > 0 ? (
-                        <img
-                          src={(product.images as string[])[0]}
-                          alt={getLocalizedName(product)}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-4xl">🚨</div>
-                      )}
-                    </div>
-                    <div className="p-3">
-                      <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug mb-1.5">
-                        {getLocalizedName(product)}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-primary">
-                          {Number(product.priceUsdd).toFixed(2)} USDD
-                        </span>
-                        <span className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full font-medium">
-                          Bulk Discount
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-
-            {/* Bulk Discount Tiers Info */}
-            <div className="mt-6 flex flex-wrap gap-3 justify-center">
-              {[
-                { qty: "5+", pct: "5%", label: "Buy 5 or more" },
-                { qty: "10+", pct: "10%", label: "Buy 10 or more" },
-                { qty: "20+", pct: "15%", label: "Buy 20 or more" },
-              ].map(({ qty, pct, label }) => (
-                <div key={qty} className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-4 py-2">
-                  <span className="text-sm font-bold text-orange-700">{pct} OFF</span>
-                  <span className="text-xs text-orange-600">{label} items</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Parallel Export Banner */}
-      <section className="py-16 bg-slate-950 text-white">
-        <div className="container">
-          <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12">
-            <div className="flex-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-900/60 border border-blue-700/50 rounded-full text-xs font-medium text-blue-300 mb-4">
-                🌏 平行出口 · Parallel Export
-              </div>
-              <h2 className="text-3xl md:text-4xl font-black mb-3 leading-tight">
-                Buy at <span className="text-blue-400">China Prices</span>,
-                <br />Sell at <span className="text-green-400">Overseas Prices</span>
-              </h2>
-              <p className="text-slate-300 mb-6 max-w-lg">
-                The same VW ID.3 costs ¥120,000 in China but €31,300 in Germany — a <strong className="text-white">51% price gap</strong>.
-                Source EVs, industrial equipment, and consumer goods directly from Chinese factories at domestic prices.
-              </p>
-              <div className="flex flex-wrap gap-3 mb-6">
-                {[
-                  { label: "VW ID.3", saving: "-51%" },
-                  { label: "Li Auto L9", saving: "-55%" },
-                  { label: "BYD Han EV", saving: "-49%" },
-                  { label: "CATL Battery", saving: "-61%" },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5">
-                    <span className="text-sm text-slate-300">{item.label}</span>
-                    <span className="text-sm font-bold text-green-400">{item.saving}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <Link href="/parallel-export">
-                  <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6">
-                    🌏 View Parallel Export Hub
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
-                <Link href="/quote">
-                  <Button variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-800 px-6">
-                    📋 Request Bulk Quote
-                  </Button>
-                </Link>
-              </div>
-            </div>
-            <div className="hidden md:grid grid-cols-2 gap-3 shrink-0">
-              {[
-                { flag: "🇰🇿", name: "Kazakhstan", note: "Top EV importer" },
-                { flag: "🇦🇪", name: "UAE / Dubai", note: "Luxury EV demand" },
-                { flag: "🇩🇪", name: "Germany", note: "VW ID parallel import" },
-                { flag: "🇸🇦", name: "Saudi Arabia", note: "Energy storage" },
-              ].map((m) => (
-                <div key={m.name} className="bg-slate-800/60 border border-slate-700 rounded-xl p-4 text-center">
-                  <div className="text-2xl mb-1">{m.flag}</div>
-                  <div className="text-sm font-bold text-white">{m.name}</div>
-                  <div className="text-xs text-slate-400">{m.note}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Hot Group Buys Section */}
-      <HotGroupBuys />
-
-      {/* Payment Banner: DARK & USDD */}
+      {/* USDD Banner */}
       <section className="py-16">
         <div className="container">
           <div className="rounded-2xl bg-gradient-to-br from-primary/10 via-accent/20 to-background border border-primary/20 p-8 md:p-12">
-            <div className="max-w-2xl">
-              <div className="text-3xl mb-4">🌑💎</div>
+            <div className="max-w-xl">
+              <div className="text-3xl mb-4">💎</div>
               <h2 className="text-2xl font-serif font-semibold text-foreground mb-3">
-                Daiizen Exclusively Accepts DARK &amp; USDD
+                Why Pay with USDD?
               </h2>
-              <p className="text-muted-foreground mb-2 leading-relaxed">
-                Daiizen is a crypto-native marketplace. We <strong className="text-foreground">only accept DMB DARK and USDD</strong> as payment —
-                no Alipay, WeChat Pay, credit cards, or any fiat currency.
-              </p>
               <p className="text-muted-foreground mb-6 leading-relaxed">
-                Both tokens are issued by{" "}
-                <a href="https://www.darkmatterbank.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">Dark Matter Bank (DMB)</a>{" "}
-                and run on the TRON (TRC-20) network. USDD is a stablecoin pegged 1:1 to USD;
-                DARK is the DMB platform token with growing utility across the ecosystem.
+                USDD is a decentralized stablecoin pegged to the US dollar, issued by Dark Matter Bank.
+                Unlike local currencies in high-inflation countries, USDD maintains stable purchasing power —
+                so the price you see today is the price you pay.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 {[
-                  { icon: "🪙", label: "USDD", desc: "Stablecoin pegged 1:1 to USD · TRON TRC-20" },
-                  { icon: "🌑", label: "DARK", desc: "DMB platform token · TRON TRC-20" },
-                  { label: "Stable Prices", desc: "No inflation risk — prices in USD-equivalent" },
-                  { label: "Global Access", desc: "No bank account required" },
-                ].map(({ icon, label, desc }) => (
-                  <div key={label} className="bg-background/60 rounded-lg p-3 border border-border/50 flex items-start gap-2">
-                    {icon && <span className="text-xl shrink-0">{icon}</span>}
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{label}</p>
-                      <p className="text-xs text-muted-foreground">{desc}</p>
-                    </div>
+                  { label: "Stable Value", desc: "Pegged 1:1 to USD" },
+                  { label: "Fast Settlement", desc: "Blockchain-powered" },
+                  { label: "Global Access", desc: "No bank required" },
+                ].map(({ label, desc }) => (
+                  <div key={label} className="bg-background/60 rounded-lg p-3 border border-border/50">
+                    <p className="text-sm font-medium text-foreground">{label}</p>
+                    <p className="text-xs text-muted-foreground">{desc}</p>
                   </div>
                 ))}
               </div>
               <Button asChild variant="outline">
                 <a href="https://www.darkmatterbank.com" target="_blank" rel="noopener noreferrer" className="gap-2">
-                  Get DARK &amp; USDD at Dark Matter Bank
+                  Get USDD at Dark Matter Bank
                   <ArrowRight className="w-4 h-4" />
                 </a>
               </Button>

@@ -1,31 +1,65 @@
 import {
-  bigint,
   decimal,
-  int,
+  integer,
   json,
-  mysqlEnum,
-  mysqlTable,
+  pgEnum,
+  pgTable,
+  serial,
   text,
   timestamp,
   varchar,
-} from "drizzle-orm/mysql-core";
+} from "drizzle-orm/pg-core";
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+export const userRoleEnum = pgEnum("user_role", ["user", "admin"]);
+export const orderStatusEnum = pgEnum("order_status", [
+  "pending_payment",
+  "paid",
+  "shipped",
+  "completed",
+  "cancelled",
+]);
+export const chatRoleEnum = pgEnum("chat_role", ["user", "assistant"]);
+
+// Business enums
+export const storeStatusEnum = pgEnum("store_status", ["pending", "active", "suspended", "rejected"]);
+export const storeTypeEnum = pgEnum("store_type", ["influencer", "supply_chain", "brand"]);
+export const externalPlatformEnum = pgEnum("external_platform", [
+  "tiktok", "pinduoduo", "xiaohongshu", "amazon", "shein", "taobao", "jd", "lazada", "shopee", "other"
+]);
+export const depositStatusEnum = pgEnum("deposit_status", ["pending", "confirmed", "rejected", "refunded", "forfeited"]);
+export const storeOrderStatusEnum = pgEnum("store_order_status", ["pending_payment", "paid", "shipped", "completed", "cancelled"]);
+export const usddTxTypeEnum = pgEnum("usdd_tx_type", ["deposit", "payment", "refund", "reward", "withdrawal", "adjustment"]);
+export const usddTxStatusEnum = pgEnum("usdd_tx_status", ["pending", "confirmed", "rejected", "completed"]);
+export const withdrawalStatusEnum = pgEnum("withdrawal_status", ["pending", "approved", "rejected", "paid"]);
+export const notifTypeEnum = pgEnum("notif_type", ["new_order", "order_status", "withdrawal_status", "deposit_status", "referral_reward", "system"]);
+export const referralRewardStatusEnum = pgEnum("referral_reward_status", ["pending", "confirmed", "paid", "cancelled"]);
+export const dropshipOrderStatusEnum = pgEnum("dropship_order_status", ["pending", "accepted", "shipped", "delivered", "cancelled"]);
+export const quoteOrgTypeEnum = pgEnum("quote_org_type", ["ngo", "military", "government", "medical", "other"]);
+export const quoteUrgencyEnum = pgEnum("quote_urgency", ["standard", "urgent", "critical"]);
+export const quoteStatusEnum = pgEnum("quote_status", ["pending", "reviewed", "quoted", "accepted", "rejected"]);
+export const groupTypeEnum = pgEnum("group_type", ["standard", "flash", "万人团"]);
+export const groupStatusEnum = pgEnum("group_status", ["open", "completed", "expired", "cancelled"]);
+export const joinedViaEnum = pgEnum("joined_via", ["direct", "whatsapp", "telegram", "wechat", "twitter", "copy"]);
+export const groupTxStatusEnum = pgEnum("group_tx_status", ["pending", "completed", "refunded"]);
+export const cardColorEnum = pgEnum("card_color", ["silver", "gold", "platinum", "black"]);
+export const cardStatusEnum = pgEnum("card_status", ["pending", "active", "suspended", "rejected"]);
+export const repaymentStatusEnum = pgEnum("repayment_status", ["pending", "submitted", "approved", "rejected"]);
+export const submissionTypeEnum = pgEnum("submission_type", ["wechat_moments", "community_trade", "social_media", "referral_signup"]);
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
-export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  passwordHash: varchar("passwordHash", { length: 255 }),
-  phoneNumber: varchar("phoneNumber", { length: 32 }),
-  telegramId: varchar("telegramId", { length: 64 }),
-  googleId: varchar("googleId", { length: 128 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: userRoleEnum("role").default("user").notNull(),
   preferredLanguage: varchar("preferredLanguage", { length: 8 }).default("en"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 
@@ -34,9 +68,9 @@ export type InsertUser = typeof users.$inferInsert;
 
 // ─── Shipping Addresses ───────────────────────────────────────────────────────
 
-export const addresses = mysqlTable("addresses", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
+export const addresses = pgTable("addresses", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
   fullName: varchar("fullName", { length: 128 }).notNull(),
   phone: varchar("phone", { length: 32 }),
   country: varchar("country", { length: 64 }).notNull(),
@@ -45,7 +79,7 @@ export const addresses = mysqlTable("addresses", {
   addressLine1: text("addressLine1").notNull(),
   addressLine2: text("addressLine2"),
   postalCode: varchar("postalCode", { length: 16 }),
-  isDefault: int("isDefault").default(0).notNull(), // 0 | 1
+  isDefault: integer("isDefault").default(0).notNull(), // 0 | 1
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -54,8 +88,8 @@ export type InsertAddress = typeof addresses.$inferInsert;
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 
-export const categories = mysqlTable("categories", {
-  id: int("id").autoincrement().primaryKey(),
+export const categories = pgTable("categories", {
+  id: serial("id").primaryKey(),
   slug: varchar("slug", { length: 64 }).notNull().unique(),
   nameEn: varchar("nameEn", { length: 128 }).notNull(),
   nameEs: varchar("nameEs", { length: 128 }),
@@ -64,7 +98,7 @@ export const categories = mysqlTable("categories", {
   nameAr: varchar("nameAr", { length: 128 }),
   nameRu: varchar("nameRu", { length: 128 }),
   iconUrl: text("iconUrl"),
-  sortOrder: int("sortOrder").default(0),
+  sortOrder: integer("sortOrder").default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -73,9 +107,9 @@ export type InsertCategory = typeof categories.$inferInsert;
 
 // ─── Products ─────────────────────────────────────────────────────────────────
 
-export const products = mysqlTable("products", {
-  id: int("id").autoincrement().primaryKey(),
-  categoryId: int("categoryId"),
+export const products = pgTable("products", {
+  id: serial("id").primaryKey(),
+  categoryId: integer("categoryId"),
   slug: varchar("slug", { length: 128 }).notNull().unique(),
   nameEn: varchar("nameEn", { length: 256 }).notNull(),
   nameEs: varchar("nameEs", { length: 256 }),
@@ -90,15 +124,15 @@ export const products = mysqlTable("products", {
   descriptionAr: text("descriptionAr"),
   descriptionRu: text("descriptionRu"),
   priceUsdd: decimal("priceUsdd", { precision: 18, scale: 6 }).notNull(),
-  stock: int("stock").default(0).notNull(),
+  stock: integer("stock").default(0).notNull(),
   images: json("images").$type<string[]>(),
   aiGeneratedImageUrl: text("aiGeneratedImageUrl"),
   tags: json("tags").$type<string[]>(),
-  isActive: int("isActive").default(1).notNull(),
-  isFeatured: int("isFeatured").default(0).notNull(),
+  isActive: integer("isActive").default(1).notNull(),
+  isFeatured: integer("isFeatured").default(0).notNull(),
   weight: decimal("weight", { precision: 10, scale: 3 }), // kg
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type Product = typeof products.$inferSelect;
@@ -106,13 +140,13 @@ export type InsertProduct = typeof products.$inferInsert;
 
 // ─── Cart Items ───────────────────────────────────────────────────────────────
 
-export const cartItems = mysqlTable("cartItems", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  productId: int("productId").notNull(),
-  quantity: int("quantity").default(1).notNull(),
+export const cartItems = pgTable("cartItems", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
+  productId: integer("productId").notNull(),
+  quantity: integer("quantity").default(1).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type CartItem = typeof cartItems.$inferSelect;
@@ -120,15 +154,12 @@ export type InsertCartItem = typeof cartItems.$inferInsert;
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
-export const orders = mysqlTable("orders", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
+export const orders = pgTable("orders", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
   orderNumber: varchar("orderNumber", { length: 32 }).notNull().unique(),
-  status: mysqlEnum("status", ["pending_payment", "paid", "shipped", "completed", "cancelled"])
-    .default("pending_payment")
-    .notNull(),
+  status: orderStatusEnum("status").default("pending_payment").notNull(),
   totalUsdd: decimal("totalUsdd", { precision: 18, scale: 6 }).notNull(),
-  // Snapshot of address at order time
   shippingAddress: json("shippingAddress").$type<{
     fullName: string;
     phone?: string;
@@ -146,7 +177,7 @@ export const orders = mysqlTable("orders", {
   completedAt: timestamp("completedAt"),
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type Order = typeof orders.$inferSelect;
@@ -154,13 +185,13 @@ export type InsertOrder = typeof orders.$inferInsert;
 
 // ─── Order Items ──────────────────────────────────────────────────────────────
 
-export const orderItems = mysqlTable("orderItems", {
-  id: int("id").autoincrement().primaryKey(),
-  orderId: int("orderId").notNull(),
-  productId: int("productId").notNull(),
-  productName: varchar("productName", { length: 256 }).notNull(), // snapshot
+export const orderItems = pgTable("orderItems", {
+  id: serial("id").primaryKey(),
+  orderId: integer("orderId").notNull(),
+  productId: integer("productId").notNull(),
+  productName: varchar("productName", { length: 256 }).notNull(),
   productImage: text("productImage"),
-  quantity: int("quantity").notNull(),
+  quantity: integer("quantity").notNull(),
   unitPriceUsdd: decimal("unitPriceUsdd", { precision: 18, scale: 6 }).notNull(),
   subtotalUsdd: decimal("subtotalUsdd", { precision: 18, scale: 6 }).notNull(),
 });
@@ -170,8 +201,8 @@ export type InsertOrderItem = typeof orderItems.$inferInsert;
 
 // ─── Exchange Rates ───────────────────────────────────────────────────────────
 
-export const exchangeRates = mysqlTable("exchangeRates", {
-  id: int("id").autoincrement().primaryKey(),
+export const exchangeRates = pgTable("exchangeRates", {
+  id: serial("id").primaryKey(),
   baseCurrency: varchar("baseCurrency", { length: 8 }).notNull().default("USDD"),
   targetCurrency: varchar("targetCurrency", { length: 8 }).notNull(),
   rate: decimal("rate", { precision: 24, scale: 8 }).notNull(),
@@ -183,11 +214,11 @@ export type ExchangeRate = typeof exchangeRates.$inferSelect;
 
 // ─── Chat Messages ────────────────────────────────────────────────────────────
 
-export const chatMessages = mysqlTable("chatMessages", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId"),
+export const chatMessages = pgTable("chatMessages", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId"),
   sessionId: varchar("sessionId", { length: 64 }).notNull(),
-  role: mysqlEnum("role", ["user", "assistant"]).notNull(),
+  role: chatRoleEnum("role").notNull(),
   content: text("content").notNull(),
   language: varchar("language", { length: 8 }).default("en"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -197,9 +228,9 @@ export type ChatMessage = typeof chatMessages.$inferSelect;
 
 // ─── Stores (Seller Shops) ────────────────────────────────────────────────────
 
-export const stores = mysqlTable("stores", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
+export const stores = pgTable("stores", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
   slug: varchar("slug", { length: 128 }).notNull().unique(),
   name: varchar("name", { length: 128 }).notNull(),
   description: text("description"),
@@ -208,19 +239,14 @@ export const stores = mysqlTable("stores", {
   contactEmail: varchar("contactEmail", { length: 320 }),
   contactPhone: varchar("contactPhone", { length: 32 }),
   country: varchar("country", { length: 64 }),
-  // Status: pending (awaiting admin approval), active, suspended, rejected
-  status: mysqlEnum("status", ["pending", "active", "suspended", "rejected"])
-    .default("pending")
-    .notNull(),
-  // Commission rate override (null = use platform default)
-  commissionRate: decimal("commissionRate", { precision: 5, scale: 4 }), // e.g. 0.0500 = 5%
-  // Total earnings and balance tracking
+  status: storeStatusEnum("status").default("pending").notNull(),
+  commissionRate: decimal("commissionRate", { precision: 5, scale: 4 }),
   totalEarningsUsdd: decimal("totalEarningsUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
   pendingBalanceUsdd: decimal("pendingBalanceUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
   adminNote: text("adminNote"),
   approvedAt: timestamp("approvedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type Store = typeof stores.$inferSelect;
@@ -228,31 +254,27 @@ export type InsertStore = typeof stores.$inferInsert;
 
 // ─── Store Products ───────────────────────────────────────────────────────────
 
-export const storeProducts = mysqlTable("storeProducts", {
-  id: int("id").autoincrement().primaryKey(),
-  storeId: int("storeId").notNull(),
-  categoryId: int("categoryId"),
+export const storeProducts = pgTable("storeProducts", {
+  id: serial("id").primaryKey(),
+  storeId: integer("storeId").notNull(),
+  categoryId: integer("categoryId"),
   slug: varchar("slug", { length: 128 }).notNull().unique(),
   name: varchar("name", { length: 256 }).notNull(),
   description: text("description"),
   priceUsdd: decimal("priceUsdd", { precision: 18, scale: 6 }).notNull(),
-  originalPriceUsdd: decimal("originalPriceUsdd", { precision: 18, scale: 6 }), // for showing discount
-  stock: int("stock").default(0).notNull(),
+  originalPriceUsdd: decimal("originalPriceUsdd", { precision: 18, scale: 6 }),
+  stock: integer("stock").default(0).notNull(),
   images: json("images").$type<string[]>(),
   tags: json("tags").$type<string[]>(),
   weight: decimal("weight", { precision: 10, scale: 3 }),
-  isActive: int("isActive").default(1).notNull(),
-  isFeatured: int("isFeatured").default(0).notNull(),
-  // External platform link (original source)
-  externalPlatform: mysqlEnum("externalPlatform", [
-    "tiktok", "pinduoduo", "xiaohongshu", "amazon", "shein", "taobao", "jd", "lazada", "shopee", "other"
-  ]),
+  isActive: integer("isActive").default(1).notNull(),
+  isFeatured: integer("isFeatured").default(0).notNull(),
+  externalPlatform: externalPlatformEnum("externalPlatform"),
   externalUrl: text("externalUrl"),
   externalProductId: varchar("externalProductId", { length: 256 }),
-  // Sales stats
-  salesCount: int("salesCount").default(0).notNull(),
+  salesCount: integer("salesCount").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type StoreProduct = typeof storeProducts.$inferSelect;
@@ -260,21 +282,19 @@ export type InsertStoreProduct = typeof storeProducts.$inferInsert;
 
 // ─── Store Deposits ───────────────────────────────────────────────────────────
 
-export const storeDeposits = mysqlTable("storeDeposits", {
-  id: int("id").autoincrement().primaryKey(),
-  storeId: int("storeId").notNull(),
-  userId: int("userId").notNull(),
+export const storeDeposits = pgTable("storeDeposits", {
+  id: serial("id").primaryKey(),
+  storeId: integer("storeId").notNull(),
+  userId: integer("userId").notNull(),
   amountUsdd: decimal("amountUsdd", { precision: 18, scale: 6 }).notNull(),
-  status: mysqlEnum("status", ["pending", "confirmed", "refunded", "forfeited"])
-    .default("pending")
-    .notNull(),
+  status: depositStatusEnum("status").default("pending").notNull(),
   paymentMethod: varchar("paymentMethod", { length: 32 }),
   paymentTxHash: varchar("paymentTxHash", { length: 128 }),
   confirmedAt: timestamp("confirmedAt"),
   refundedAt: timestamp("refundedAt"),
   adminNote: text("adminNote"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type StoreDeposit = typeof storeDeposits.$inferSelect;
@@ -282,23 +302,23 @@ export type InsertStoreDeposit = typeof storeDeposits.$inferInsert;
 
 // ─── Platform Commission Config ───────────────────────────────────────────────
 
-export const platformConfig = mysqlTable("platformConfig", {
-  id: int("id").autoincrement().primaryKey(),
+export const platformConfig = pgTable("platformConfig", {
+  id: serial("id").primaryKey(),
   key: varchar("key", { length: 64 }).notNull().unique(),
   value: text("value").notNull(),
   description: text("description"),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type PlatformConfig = typeof platformConfig.$inferSelect;
 
 // ─── Commission Records ───────────────────────────────────────────────────────
 
-export const commissionRecords = mysqlTable("commissionRecords", {
-  id: int("id").autoincrement().primaryKey(),
-  storeId: int("storeId").notNull(),
-  orderId: int("orderId").notNull(),
-  orderItemId: int("orderItemId").notNull(),
+export const commissionRecords = pgTable("commissionRecords", {
+  id: serial("id").primaryKey(),
+  storeId: integer("storeId").notNull(),
+  orderId: integer("orderId").notNull(),
+  orderItemId: integer("orderItemId").notNull(),
   saleAmountUsdd: decimal("saleAmountUsdd", { precision: 18, scale: 6 }).notNull(),
   commissionRate: decimal("commissionRate", { precision: 5, scale: 4 }).notNull(),
   commissionAmountUsdd: decimal("commissionAmountUsdd", { precision: 18, scale: 6 }).notNull(),
@@ -310,334 +330,305 @@ export type CommissionRecord = typeof commissionRecords.$inferSelect;
 export type InsertCommissionRecord = typeof commissionRecords.$inferInsert;
 
 // ─── Store Orders ─────────────────────────────────────────────────────────────
-// Links platform orders to specific stores (for multi-store cart support)
 
-export const storeOrders = mysqlTable("storeOrders", {
-  id: int("id").autoincrement().primaryKey(),
-  orderId: int("orderId").notNull(),
-  storeId: int("storeId").notNull(),
+export const storeOrders = pgTable("storeOrders", {
+  id: serial("id").primaryKey(),
+  orderId: integer("orderId").notNull(),
+  storeId: integer("storeId").notNull(),
   subtotalUsdd: decimal("subtotalUsdd", { precision: 18, scale: 6 }).notNull(),
   commissionUsdd: decimal("commissionUsdd", { precision: 18, scale: 6 }).notNull(),
   sellerEarningsUsdd: decimal("sellerEarningsUsdd", { precision: 18, scale: 6 }).notNull(),
-  status: mysqlEnum("status", ["pending_payment", "paid", "shipped", "completed", "cancelled"])
-    .default("pending_payment")
-    .notNull(),
+  status: storeOrderStatusEnum("status").default("pending_payment").notNull(),
   trackingNumber: varchar("trackingNumber", { length: 128 }),
   shippedAt: timestamp("shippedAt"),
   completedAt: timestamp("completedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type StoreOrder = typeof storeOrders.$inferSelect;
 export type InsertStoreOrder = typeof storeOrders.$inferInsert;
 
 // ─── S2B2C: Store Type Extension ──────────────────────────────────────────────
-// storeType added as a separate table to avoid altering existing stores table
-// "influencer" = KOL/网红店, "supply_chain" = 供应链/批发商, "brand" = 品牌自营
-export const storeProfiles = mysqlTable("storeProfiles", {
-  id: int("id").autoincrement().primaryKey(),
-  storeId: int("storeId").notNull().unique(),
-  storeType: mysqlEnum("storeType", ["influencer", "supply_chain", "brand"])
-    .default("influencer")
-    .notNull(),
-  // For influencers: social platform links
+
+export const storeProfiles = pgTable("storeProfiles", {
+  id: serial("id").primaryKey(),
+  storeId: integer("storeId").notNull().unique(),
+  storeType: storeTypeEnum("storeType").default("influencer").notNull(),
   tiktokHandle: varchar("tiktokHandle", { length: 128 }),
   instagramHandle: varchar("instagramHandle", { length: 128 }),
   youtubeHandle: varchar("youtubeHandle", { length: 128 }),
   xiaohongshuHandle: varchar("xiaohongshuHandle", { length: 128 }),
-  followerCount: int("followerCount").default(0),
-  // For supply chain: wholesale info
-  minOrderQuantity: int("minOrderQuantity").default(1),
+  followerCount: integer("followerCount").default(0),
+  minOrderQuantity: integer("minOrderQuantity").default(1),
   warehouseCountry: varchar("warehouseCountry", { length: 64 }),
-  shippingDays: int("shippingDays").default(7),
-  isDropshipEnabled: int("isDropshipEnabled").default(0).notNull(),
+  shippingDays: integer("shippingDays").default(7),
+  isDropshipEnabled: integer("isDropshipEnabled").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
+
 export type StoreProfile = typeof storeProfiles.$inferSelect;
 
 // ─── Referral System (3-Level Max) ───────────────────────────────────────────
-// Each user has one referral code; referral tree tracks up to 3 ancestors
-export const referralCodes = mysqlTable("referralCodes", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull().unique(),
+
+export const referralCodes = pgTable("referralCodes", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().unique(),
   code: varchar("code", { length: 16 }).notNull().unique(),
-  totalReferrals: int("totalReferrals").default(0).notNull(),
+  totalReferrals: integer("totalReferrals").default(0).notNull(),
   totalRewardsUsdd: decimal("totalRewardsUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
+
 export type ReferralCode = typeof referralCodes.$inferSelect;
 
-// Tracks who referred whom, and the referral chain (up to 3 levels)
-export const referralRelations = mysqlTable("referralRelations", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull().unique(), // the new user
-  referredByUserId: int("referredByUserId").notNull(), // direct referrer (L1)
-  l2UserId: int("l2UserId"), // L1's referrer (L2 for original user)
-  l3UserId: int("l3UserId"), // L2's referrer (L3 for original user)
+export const referralRelations = pgTable("referralRelations", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().unique(),
+  referredByUserId: integer("referredByUserId").notNull(),
+  l2UserId: integer("l2UserId"),
+  l3UserId: integer("l3UserId"),
   referralCode: varchar("referralCode", { length: 16 }).notNull(),
-  firstPurchaseDone: int("firstPurchaseDone").default(0).notNull(),
+  firstPurchaseDone: integer("firstPurchaseDone").default(0).notNull(),
   firstPurchaseAt: timestamp("firstPurchaseAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
+
 export type ReferralRelation = typeof referralRelations.$inferSelect;
 
-// Reward records for each referral level
-export const referralRewards = mysqlTable("referralRewards", {
-  id: int("id").autoincrement().primaryKey(),
-  beneficiaryUserId: int("beneficiaryUserId").notNull(), // who earns the reward
-  referredUserId: int("referredUserId").notNull(), // whose purchase triggered it
-  orderId: int("orderId").notNull(),
-  level: int("level").notNull(), // 1, 2, or 3
+export const referralRewards = pgTable("referralRewards", {
+  id: serial("id").primaryKey(),
+  beneficiaryUserId: integer("beneficiaryUserId").notNull(),
+  referredUserId: integer("referredUserId").notNull(),
+  orderId: integer("orderId").notNull(),
+  level: integer("level").notNull(),
   orderAmountUsdd: decimal("orderAmountUsdd", { precision: 18, scale: 6 }).notNull(),
-  rewardRate: decimal("rewardRate", { precision: 5, scale: 4 }).notNull(), // 0.05, 0.02, 0.01
+  rewardRate: decimal("rewardRate", { precision: 5, scale: 4 }).notNull(),
   rewardAmountUsdd: decimal("rewardAmountUsdd", { precision: 18, scale: 6 }).notNull(),
-  status: mysqlEnum("status", ["pending", "confirmed", "paid", "cancelled"])
-    .default("pending")
-    .notNull(),
+  status: referralRewardStatusEnum("status").default("pending").notNull(),
   paidAt: timestamp("paidAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
+
 export type ReferralReward = typeof referralRewards.$inferSelect;
 
-// User credit wallet (earned from referrals, redeemable for goods/cashout)
-export const userCredits = mysqlTable("userCredits", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull().unique(),
+export const userCredits = pgTable("userCredits", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().unique(),
   balanceUsdd: decimal("balanceUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
   totalEarnedUsdd: decimal("totalEarnedUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
   totalSpentUsdd: decimal("totalSpentUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
+
 export type UserCredit = typeof userCredits.$inferSelect;
 
 // ─── Supply Chain Catalog ─────────────────────────────────────────────────────
-// Products listed by supply chain stores available for influencers to dropship
-export const supplyChainProducts = mysqlTable("supplyChainProducts", {
-  id: int("id").autoincrement().primaryKey(),
-  storeId: int("storeId").notNull(), // must be a supply_chain store
+
+export const supplyChainProducts = pgTable("supplyChainProducts", {
+  id: serial("id").primaryKey(),
+  storeId: integer("storeId").notNull(),
   name: varchar("name", { length: 256 }).notNull(),
   description: text("description"),
-  categoryId: int("categoryId"),
-  basePriceUsdd: decimal("basePriceUsdd", { precision: 18, scale: 6 }).notNull(), // wholesale price
-  suggestedRetailPriceUsdd: decimal("suggestedRetailPriceUsdd", { precision: 18, scale: 6 }), // MSRP
+  categoryId: integer("categoryId"),
+  basePriceUsdd: decimal("basePriceUsdd", { precision: 18, scale: 6 }).notNull(),
+  suggestedRetailPriceUsdd: decimal("suggestedRetailPriceUsdd", { precision: 18, scale: 6 }),
   images: json("images").$type<string[]>(),
-  stock: int("stock").default(0).notNull(),
-  minOrderQty: int("minOrderQty").default(1).notNull(),
+  stock: integer("stock").default(0).notNull(),
+  minOrderQty: integer("minOrderQty").default(1).notNull(),
   weight: decimal("weight", { precision: 10, scale: 3 }),
   tags: json("tags").$type<string[]>(),
-  isDropshipAvailable: int("isDropshipAvailable").default(1).notNull(),
-  isActive: int("isActive").default(1).notNull(),
-  salesCount: int("salesCount").default(0).notNull(),
+  isDropshipAvailable: integer("isDropshipAvailable").default(1).notNull(),
+  isActive: integer("isActive").default(1).notNull(),
+  salesCount: integer("salesCount").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
+
 export type SupplyChainProduct = typeof supplyChainProducts.$inferSelect;
 
-// Links influencer store products to supply chain source products (dropship)
-export const dropshipLinks = mysqlTable("dropshipLinks", {
-  id: int("id").autoincrement().primaryKey(),
-  influencerStoreId: int("influencerStoreId").notNull(),
-  influencerProductId: int("influencerProductId").notNull(), // storeProducts.id
-  supplyChainProductId: int("supplyChainProductId").notNull(),
-  supplyChainStoreId: int("supplyChainStoreId").notNull(),
-  markupPriceUsdd: decimal("markupPriceUsdd", { precision: 18, scale: 6 }).notNull(), // influencer's selling price
-  basePriceUsdd: decimal("basePriceUsdd", { precision: 18, scale: 6 }).notNull(), // supply chain cost
-  influencerMarginUsdd: decimal("influencerMarginUsdd", { precision: 18, scale: 6 }).notNull(), // markup - base
-  isActive: int("isActive").default(1).notNull(),
+export const dropshipLinks = pgTable("dropshipLinks", {
+  id: serial("id").primaryKey(),
+  influencerStoreId: integer("influencerStoreId").notNull(),
+  influencerProductId: integer("influencerProductId").notNull(),
+  supplyChainProductId: integer("supplyChainProductId").notNull(),
+  supplyChainStoreId: integer("supplyChainStoreId").notNull(),
+  markupPriceUsdd: decimal("markupPriceUsdd", { precision: 18, scale: 6 }).notNull(),
+  basePriceUsdd: decimal("basePriceUsdd", { precision: 18, scale: 6 }).notNull(),
+  influencerMarginUsdd: decimal("influencerMarginUsdd", { precision: 18, scale: 6 }).notNull(),
+  isActive: integer("isActive").default(1).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
+
 export type DropshipLink = typeof dropshipLinks.$inferSelect;
 
-// Dropship fulfillment orders (sent to supply chain when influencer makes a sale)
-export const dropshipOrders = mysqlTable("dropshipOrders", {
-  id: int("id").autoincrement().primaryKey(),
-  storeOrderId: int("storeOrderId").notNull(), // original storeOrders.id
-  influencerStoreId: int("influencerStoreId").notNull(),
-  supplyChainStoreId: int("supplyChainStoreId").notNull(),
-  supplyChainProductId: int("supplyChainProductId").notNull(),
-  quantity: int("quantity").notNull(),
+export const dropshipOrders = pgTable("dropshipOrders", {
+  id: serial("id").primaryKey(),
+  storeOrderId: integer("storeOrderId").notNull(),
+  influencerStoreId: integer("influencerStoreId").notNull(),
+  supplyChainStoreId: integer("supplyChainStoreId").notNull(),
+  supplyChainProductId: integer("supplyChainProductId").notNull(),
+  quantity: integer("quantity").notNull(),
   basePriceUsdd: decimal("basePriceUsdd", { precision: 18, scale: 6 }).notNull(),
   totalCostUsdd: decimal("totalCostUsdd", { precision: 18, scale: 6 }).notNull(),
-  // Shipping address (copied from buyer's order)
   shippingName: varchar("shippingName", { length: 128 }),
   shippingPhone: varchar("shippingPhone", { length: 32 }),
   shippingAddress: text("shippingAddress"),
   shippingCountry: varchar("shippingCountry", { length: 64 }),
-  status: mysqlEnum("status", ["pending", "accepted", "shipped", "delivered", "cancelled"])
-    .default("pending")
-    .notNull(),
+  status: dropshipOrderStatusEnum("status").default("pending").notNull(),
   trackingNumber: varchar("trackingNumber", { length: 128 }),
   supplyChainNote: text("supplyChainNote"),
   shippedAt: timestamp("shippedAt"),
   deliveredAt: timestamp("deliveredAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
+
 export type DropshipOrder = typeof dropshipOrders.$inferSelect;
 
 // ─── USDD Wallet System ───────────────────────────────────────────────────────
-// Each user has a USDD wallet for paying orders and receiving referral rewards
 
-export const usddWallets = mysqlTable("usddWallets", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull().unique(),
+export const usddWallets = pgTable("usddWallets", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().unique(),
   balanceUsdd: decimal("balanceUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
   totalDepositedUsdd: decimal("totalDepositedUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
   totalSpentUsdd: decimal("totalSpentUsdd", { precision: 18, scale: 6 }).default("0").notNull(),
-  // TRC-20 deposit address assigned to this user (for monitoring incoming transfers)
   depositAddress: varchar("depositAddress", { length: 64 }),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
+
 export type UsddWallet = typeof usddWallets.$inferSelect;
 
-// Transaction log for all USDD movements (deposits, payments, rewards, withdrawals)
-export const usddTransactions = mysqlTable("usddTransactions", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  type: mysqlEnum("type", [
-    "deposit",       // user topped up via TRC-20
-    "payment",       // user paid for an order
-    "refund",        // order refund
-    "reward",        // referral reward credited
-    "withdrawal",    // seller withdrew to external wallet
-    "adjustment",    // admin manual adjustment
-  ]).notNull(),
-  amountUsdd: decimal("amountUsdd", { precision: 18, scale: 6 }).notNull(), // positive = credit, negative = debit
+export const usddTransactions = pgTable("usddTransactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
+  type: usddTxTypeEnum("type").notNull(),
+  amountUsdd: decimal("amountUsdd", { precision: 18, scale: 6 }).notNull(),
   balanceAfterUsdd: decimal("balanceAfterUsdd", { precision: 18, scale: 6 }).notNull(),
-  // Reference IDs (nullable, depends on type)
-  orderId: int("orderId"),
+  orderId: integer("orderId"),
   depositScreenshotUrl: text("depositScreenshotUrl"),
-  txHash: varchar("txHash", { length: 128 }), // TRC-20 transaction hash
-  status: mysqlEnum("status", ["pending", "confirmed", "rejected", "completed"])
-    .default("pending")
-    .notNull(),
+  txHash: varchar("txHash", { length: 128 }),
+  status: usddTxStatusEnum("status").default("pending").notNull(),
   note: text("note"),
   adminNote: text("adminNote"),
   confirmedAt: timestamp("confirmedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
+
 export type UsddTransaction = typeof usddTransactions.$inferSelect;
 
 // ─── Seller Withdrawal Requests ───────────────────────────────────────────────
-// Sellers request to withdraw their earnings to an external TRC-20 wallet
 
-export const withdrawalRequests = mysqlTable("withdrawalRequests", {
-  id: int("id").autoincrement().primaryKey(),
-  storeId: int("storeId").notNull(),
-  userId: int("userId").notNull(),
+export const withdrawalRequests = pgTable("withdrawalRequests", {
+  id: serial("id").primaryKey(),
+  storeId: integer("storeId").notNull(),
+  userId: integer("userId").notNull(),
   amountUsdd: decimal("amountUsdd", { precision: 18, scale: 6 }).notNull(),
-  walletAddress: varchar("walletAddress", { length: 64 }).notNull(), // TRC-20 destination
-  status: mysqlEnum("status", ["pending", "approved", "rejected", "paid"])
-    .default("pending")
-    .notNull(),
-  // Admin fills these in when processing
+  walletAddress: varchar("walletAddress", { length: 64 }).notNull(),
+  status: withdrawalStatusEnum("status").default("pending").notNull(),
   txHash: varchar("txHash", { length: 128 }),
   adminNote: text("adminNote"),
   rejectionReason: text("rejectionReason"),
   approvedAt: timestamp("approvedAt"),
   paidAt: timestamp("paidAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
+
 export type WithdrawalRequest = typeof withdrawalRequests.$inferSelect;
 
 // ─── Product Reviews ──────────────────────────────────────────────────────────
-// Buyers can leave a review after their order is completed
 
-export const productReviews = mysqlTable("productReviews", {
-  id: int("id").autoincrement().primaryKey(),
-  orderId: int("orderId").notNull(),
-  orderItemId: int("orderItemId").notNull(),
-  userId: int("userId").notNull(),
-  productId: int("productId"), // platform product (nullable)
-  storeProductId: int("storeProductId"), // store product (nullable)
-  storeId: int("storeId"), // which store the product belongs to
-  rating: int("rating").notNull(), // 1-5
+export const productReviews = pgTable("productReviews", {
+  id: serial("id").primaryKey(),
+  orderId: integer("orderId").notNull(),
+  orderItemId: integer("orderItemId").notNull(),
+  userId: integer("userId").notNull(),
+  productId: integer("productId"),
+  storeProductId: integer("storeProductId"),
+  storeId: integer("storeId"),
+  rating: integer("rating").notNull(),
   comment: text("comment"),
   images: json("images").$type<string[]>(),
-  isVerifiedPurchase: int("isVerifiedPurchase").default(1).notNull(),
+  isVerifiedPurchase: integer("isVerifiedPurchase").default(1).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
+
 export type ProductReview = typeof productReviews.$inferSelect;
 export type InsertProductReview = typeof productReviews.$inferInsert;
 
 // ─── User Notifications ───────────────────────────────────────────────────────
-// In-app notifications for sellers (new orders, withdrawal status, etc.)
-export const userNotifications = mysqlTable("userNotifications", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  type: mysqlEnum("type", ["new_order", "order_status", "withdrawal_status", "deposit_status", "referral_reward", "system"]).notNull(),
+
+export const userNotifications = pgTable("userNotifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
+  type: notifTypeEnum("type").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   body: text("body").notNull(),
   link: varchar("link", { length: 500 }),
-  isRead: int("isRead").default(0).notNull(),
+  isRead: integer("isRead").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
+
 export type UserNotification = typeof userNotifications.$inferSelect;
 export type InsertUserNotification = typeof userNotifications.$inferInsert;
 
 // ─── Bulk Purchase Discounts ──────────────────────────────────────────────────
-// Discount tiers: buy minQty or more of a product/category → get discountPct% off
-export const bulkDiscounts = mysqlTable("bulkDiscounts", {
-  id: int("id").autoincrement().primaryKey(),
-  productId: int("productId"),    // null = applies to whole category
-  categoryId: int("categoryId"),  // null = applies to specific product only
-  minQty: int("minQty").notNull(), // minimum quantity to trigger discount
-  discountPct: decimal("discountPct", { precision: 5, scale: 2 }).notNull(), // e.g. 10.00 = 10%
-  label: varchar("label", { length: 128 }), // e.g. "Buy 10+ get 10% off"
-  isActive: int("isActive").default(1).notNull(),
+
+export const bulkDiscounts = pgTable("bulkDiscounts", {
+  id: serial("id").primaryKey(),
+  productId: integer("productId"),
+  categoryId: integer("categoryId"),
+  minQty: integer("minQty").notNull(),
+  discountPct: decimal("discountPct", { precision: 5, scale: 2 }).notNull(),
+  label: varchar("label", { length: 128 }),
+  isActive: integer("isActive").default(1).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
+
 export type BulkDiscount = typeof bulkDiscounts.$inferSelect;
 export type InsertBulkDiscount = typeof bulkDiscounts.$inferInsert;
 
 // ─── Low Stock Thresholds ─────────────────────────────────────────────────────
-// Admin sets a threshold; when stock drops below it, owner gets notified
-export const lowStockThresholds = mysqlTable("lowStockThresholds", {
-  id: int("id").autoincrement().primaryKey(),
-  productId: int("productId").notNull().unique(),
-  threshold: int("threshold").notNull().default(10),
+
+export const lowStockThresholds = pgTable("lowStockThresholds", {
+  id: serial("id").primaryKey(),
+  productId: integer("productId").notNull().unique(),
+  threshold: integer("threshold").notNull().default(10),
   lastNotifiedAt: timestamp("lastNotifiedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
+
 export type LowStockThreshold = typeof lowStockThresholds.$inferSelect;
 
 // ─── Bulk Quote Requests ──────────────────────────────────────────────────────
-// Institutional buyers (NGOs, military procurement) submit bulk quote requests
 
-export const quoteRequests = mysqlTable("quoteRequests", {
-  id: int("id").autoincrement().primaryKey(),
-  // Submitter info
+export const quoteRequests = pgTable("quoteRequests", {
+  id: serial("id").primaryKey(),
   orgName: varchar("orgName", { length: 256 }).notNull(),
   contactName: varchar("contactName", { length: 128 }).notNull(),
   contactEmail: varchar("contactEmail", { length: 320 }).notNull(),
   contactPhone: varchar("contactPhone", { length: 64 }),
-  orgType: mysqlEnum("orgType", ["ngo", "military", "government", "medical", "other"]).notNull(),
-  // Delivery
+  orgType: quoteOrgTypeEnum("orgType").notNull(),
   deliveryCountry: varchar("deliveryCountry", { length: 64 }).notNull(),
   deliveryCity: varchar("deliveryCity", { length: 128 }),
   deliveryAddress: text("deliveryAddress"),
-  // Items: JSON array of { productId, productName, quantity, unitPriceUsdd }
   items: json("items").notNull(),
-  // Total estimated value
   estimatedTotalUsdd: decimal("estimatedTotalUsdd", { precision: 18, scale: 2 }),
-  // Additional info
-  urgency: mysqlEnum("urgency", ["standard", "urgent", "critical"]).default("standard").notNull(),
+  urgency: quoteUrgencyEnum("urgency").default("standard").notNull(),
   notes: text("notes"),
-  // Status workflow: pending → reviewed → quoted → accepted | rejected
-  status: mysqlEnum("status", ["pending", "reviewed", "quoted", "accepted", "rejected"]).default("pending").notNull(),
+  status: quoteStatusEnum("status").default("pending").notNull(),
   adminNotes: text("adminNotes"),
   quotedPriceUsdd: decimal("quotedPriceUsdd", { precision: 18, scale: 2 }),
-  // Optional: link to logged-in user
-  userId: int("userId"),
+  userId: integer("userId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type QuoteRequest = typeof quoteRequests.$inferSelect;
@@ -645,84 +636,112 @@ export type InsertQuoteRequest = typeof quoteRequests.$inferInsert;
 
 // ─── Group Buy (拼团) ─────────────────────────────────────────────────────────
 
-export const groupBuys = mysqlTable("groupBuys", {
-  id: int("id").autoincrement().primaryKey(),
-  // Product reference (can be platform product or free-form)
-  productId: int("productId"),
+export const groupBuys = pgTable("groupBuys", {
+  id: serial("id").primaryKey(),
+  productId: integer("productId"),
   productName: varchar("productName", { length: 255 }).notNull(),
   productSlug: varchar("productSlug", { length: 255 }),
   originalPrice: decimal("originalPrice", { precision: 18, scale: 4 }).notNull(),
-  // Group type: standard (72h), flash (24h), 万人团 (30d)
-  groupType: mysqlEnum("groupType", ["standard", "flash", "万人团"]).default("standard").notNull(),
-  targetCount: int("targetCount").default(10).notNull(),
-  currentCount: int("currentCount").default(0).notNull(),
-  status: mysqlEnum("status", ["open", "completed", "expired", "cancelled"]).default("open").notNull(),
+  groupType: groupTypeEnum("groupType").default("standard").notNull(),
+  targetCount: integer("targetCount").default(10).notNull(),
+  currentCount: integer("currentCount").default(0).notNull(),
+  status: groupStatusEnum("status").default("open").notNull(),
   expiresAt: timestamp("expiresAt").notNull(),
   completedAt: timestamp("completedAt"),
-  creatorId: int("creatorId").notNull(),
+  creatorId: integer("creatorId").notNull(),
   shareToken: varchar("shareToken", { length: 32 }).notNull().unique(),
-  priceTiers: json("priceTiers"), // JSON array of PriceTier
+  priceTiers: json("priceTiers"),
   imageUrl: text("imageUrl"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
+
 export type GroupBuy = typeof groupBuys.$inferSelect;
 export type InsertGroupBuy = typeof groupBuys.$inferInsert;
 
-export const groupBuyParticipants = mysqlTable("groupBuyParticipants", {
-  id: int("id").autoincrement().primaryKey(),
-  groupBuyId: int("groupBuyId").notNull(),
-  userId: int("userId").notNull(),
-  quantity: int("quantity").default(1).notNull(),
+export const groupBuyParticipants = pgTable("groupBuyParticipants", {
+  id: serial("id").primaryKey(),
+  groupBuyId: integer("groupBuyId").notNull(),
+  userId: integer("userId").notNull(),
+  quantity: integer("quantity").default(1).notNull(),
   lockedPrice: decimal("lockedPrice", { precision: 18, scale: 4 }).notNull(),
   discountPct: decimal("discountPct", { precision: 5, scale: 2 }).notNull(),
-  joinedVia: mysqlEnum("joinedVia", ["direct", "whatsapp", "telegram", "wechat", "twitter", "copy"]).default("direct").notNull(),
-  referrerId: int("referrerId"),
-  txStatus: mysqlEnum("txStatus", ["pending", "completed", "refunded"]).default("pending").notNull(),
-  orderId: int("orderId"),
+  joinedVia: joinedViaEnum("joinedVia").default("direct").notNull(),
+  referrerId: integer("referrerId"),
+  txStatus: groupTxStatusEnum("txStatus").default("pending").notNull(),
+  orderId: integer("orderId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
+
 export type GroupBuyParticipant = typeof groupBuyParticipants.$inferSelect;
 
 // ─── Creator Card ─────────────────────────────────────────────────────────────
 
-export const creatorCards = mysqlTable("creatorCards", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull().unique(),
+export const creatorCards = pgTable("creatorCards", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().unique(),
   cardNumber: varchar("cardNumber", { length: 24 }).notNull().unique(),
-  cardColor: mysqlEnum("cardColor", ["silver", "gold", "platinum", "black"]).default("gold").notNull(),
+  cardColor: cardColorEnum("cardColor").default("gold").notNull(),
   creditLimit: decimal("creditLimit", { precision: 10, scale: 2 }).default("0").notNull(),
   usedAmount: decimal("usedAmount", { precision: 10, scale: 2 }).default("0").notNull(),
-  status: mysqlEnum("status", ["pending", "active", "suspended", "rejected"]).default("pending").notNull(),
-  totalFollowers: int("totalFollowers").default(0).notNull(),
-  aiScore: int("aiScore").default(0).notNull(),
+  status: cardStatusEnum("status").default("pending").notNull(),
+  totalFollowers: integer("totalFollowers").default(0).notNull(),
+  aiScore: integer("aiScore").default(0).notNull(),
   aiReason: text("aiReason"),
-  socialAccounts: json("socialAccounts"), // JSON array of SocialAccount
+  socialAccounts: json("socialAccounts"),
   expiresAt: timestamp("expiresAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
+
 export type CreatorCard = typeof creatorCards.$inferSelect;
 export type InsertCreatorCard = typeof creatorCards.$inferInsert;
 
-export const creatorCardConsumptions = mysqlTable("creatorCardConsumptions", {
-  id: int("id").autoincrement().primaryKey(),
-  cardId: int("cardId").notNull(),
-  userId: int("userId").notNull(),
+export const creatorCardConsumptions = pgTable("creatorCardConsumptions", {
+  id: serial("id").primaryKey(),
+  cardId: integer("cardId").notNull(),
+  userId: integer("userId").notNull(),
   merchant: varchar("merchant", { length: 255 }).notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
-  // Repayment via content submission
-  repaymentStatus: mysqlEnum("repaymentStatus", ["pending", "submitted", "approved", "rejected"]).default("pending").notNull(),
-  submissionType: mysqlEnum("submissionType", ["wechat_moments", "community_trade", "social_media", "referral_signup"]),
+  repaymentStatus: repaymentStatusEnum("repaymentStatus").default("pending").notNull(),
+  submissionType: submissionTypeEnum("submissionType"),
   contentUrl: text("contentUrl"),
   screenshotUrl: text("screenshotUrl"),
   contentDescription: text("contentDescription"),
-  claimedViews: int("claimedViews"),
-  aiReviewScore: int("aiReviewScore"),
+  claimedViews: integer("claimedViews"),
+  aiReviewScore: integer("aiReviewScore"),
   aiReviewReason: text("aiReviewReason"),
   darkRewardEarned: decimal("darkRewardEarned", { precision: 10, scale: 2 }).default("0").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
+
 export type CreatorCardConsumption = typeof creatorCardConsumptions.$inferSelect;
+
+// ─── Payment Configs ──────────────────────────────────────────────────────────
+
+export const paymentConfigs = pgTable("paymentConfigs", {
+  id: serial("id").primaryKey(),
+  method: varchar("method", { length: 32 }).notNull().unique(), // "usdd" | "dark"
+  accountName: varchar("accountName", { length: 100 }),
+  accountNumber: varchar("accountNumber", { length: 100 }),
+  qrCodeUrl: text("qrCodeUrl"),
+  isEnabled: integer("isEnabled").default(1).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export type PaymentConfig = typeof paymentConfigs.$inferSelect;
+
+// ─── Product Events (Analytics) ───────────────────────────────────────────────
+
+export const productEvents = pgTable("productEvents", {
+  id: serial("id").primaryKey(),
+  storeProductId: integer("storeProductId").notNull(),
+  eventType: varchar("eventType", { length: 32 }).notNull(), // "view" | "cart_add" | "order"
+  userId: integer("userId"),
+  amountUsdd: decimal("amountUsdd", { precision: 18, scale: 6 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ProductEvent = typeof productEvents.$inferSelect;

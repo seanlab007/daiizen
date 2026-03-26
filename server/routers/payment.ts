@@ -5,7 +5,7 @@ import {
   getPaymentConfigs,
   getPaymentConfigByMethod,
   upsertPaymentConfig,
-  updateDepositPaymentInfo,
+  submitDepositPayment,
   adminReviewDeposit,
   listPendingDepositsWithPayment,
   trackProductEvent,
@@ -36,15 +36,13 @@ export const paymentRouter = router({
       z.object({
         depositId: z.number().int().positive(),
         paymentMethod: z.enum(["usdd", "dark"]),
-        paymentAmountCny: z.number().positive().optional(),
         transferScreenshotUrl: z.string().url().optional(),
         transferNote: z.string().max(200).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await updateDepositPaymentInfo(input.depositId, {
+      await submitDepositPayment(input.depositId, {
         paymentMethod: input.paymentMethod,
-        paymentAmountCny: input.paymentAmountCny,
         transferScreenshotUrl: input.transferScreenshotUrl,
         transferNote: input.transferNote,
       });
@@ -89,11 +87,12 @@ export const paymentRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      await upsertPaymentConfig(input.method, {
+      await upsertPaymentConfig({
+        method: input.method,
         accountName: input.accountName,
-        accountNumber: input.accountNumber,
-        qrCodeUrl: input.qrCodeUrl,
-        isEnabled: input.isEnabled,
+        accountNumber: input.accountNumber ?? undefined,
+        qrCodeUrl: input.qrCodeUrl ?? undefined,
+        isEnabled: input.isEnabled !== undefined ? (input.isEnabled ? 1 : 0) : undefined,
       });
       return { success: true };
     }),

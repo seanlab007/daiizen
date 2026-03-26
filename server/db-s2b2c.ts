@@ -1,9 +1,10 @@
 import { eq, and, desc, sql, or } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 let _db: ReturnType<typeof drizzle> | null = null;
 async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
-    _db = drizzle(process.env.DATABASE_URL);
+    _db = drizzle(postgres(process.env.DATABASE_URL!, { max: 10 }));
   }
   return _db!;
 }
@@ -151,7 +152,8 @@ export async function confirmReferralReward(rewardId: number) {
     balanceUsdd: reward.rewardAmountUsdd,
     totalEarnedUsdd: reward.rewardAmountUsdd,
     totalSpentUsdd: "0",
-  }).onDuplicateKeyUpdate({
+  }).onConflictDoUpdate({
+    target: userCredits.userId,
     set: {
       balanceUsdd: sql`${userCredits.balanceUsdd} + ${reward.rewardAmountUsdd}`,
       totalEarnedUsdd: sql`${userCredits.totalEarnedUsdd} + ${reward.rewardAmountUsdd}`,

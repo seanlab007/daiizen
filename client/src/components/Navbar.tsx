@@ -1,7 +1,7 @@
 import { useLanguage, LANGUAGES } from "@/contexts/LanguageContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-
+import { getLoginUrl } from "@/const";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,9 +10,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ShoppingCart, User, ChevronDown, Search, Menu, X, Leaf, Bell } from "lucide-react";
+import { ShoppingCart, User, ChevronDown, Search, Menu, X, Leaf } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 
 export default function Navbar() {
@@ -24,32 +24,6 @@ export default function Navbar() {
 
   const { data: cartData } = trpc.cart.count.useQuery(undefined, { enabled: isAuthenticated });
   const cartCount = cartData?.count ?? 0;
-
-  const { data: notifData, refetch: refetchNotifs } = trpc.notifications.list.useQuery(
-    { limit: 10 },
-    { enabled: isAuthenticated, refetchInterval: 30000 }
-  );
-  const { data: unreadData, refetch: refetchUnread } = trpc.notifications.unreadCount.useQuery(
-    undefined,
-    { enabled: isAuthenticated, refetchInterval: 30000 }
-  );
-  const markReadMutation = trpc.notifications.markRead.useMutation({
-    onSuccess: () => { refetchNotifs(); refetchUnread(); },
-  });
-  const unreadCount = unreadData?.count ?? 0;
-  const notifications = Array.isArray(notifData) ? notifData : [];
-  const [notifOpen, setNotifOpen] = useState(false);
-  const notifRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setNotifOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,52 +56,6 @@ export default function Navbar() {
             </Link>
             <Link href="/products" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               {t("nav.products")}
-            </Link>
-            <Link href="/marketplace" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              {t("nav.marketplace")}
-            </Link>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-                  {t("nav.open_store")} <ChevronDown className="w-3 h-3" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-52">
-                <DropdownMenuItem asChild>
-                  <Link href="/influencer-onboarding" className="gap-2">
-                    {t("nav.influencer")}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/supply-chain-onboarding" className="gap-2">
-                    {t("nav.supply_chain")}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/seller" className="gap-2">
-                    {t("nav.seller_dashboard")}
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Link href="/referral" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              {t("nav.referral")}
-            </Link>
-            <Link href="/emergency" className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors flex items-center gap-1">
-              🚨 Emergency
-            </Link>
-            <Link href="/quote" className="text-sm font-medium text-amber-600 hover:text-amber-700 transition-colors flex items-center gap-1">
-              📋 Bulk Quote
-            </Link>
-            <Link href="/parallel-export" className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1">
-              🌏 Parallel Export
-            </Link>
-            <Link href="/group-buy" className="text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors flex items-center gap-1">
-              🔥 Group Buy
-            </Link>
-            <Link href="/creator-card" className="text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors flex items-center gap-1">
-              ✨ Creator Card
             </Link>
           </nav>
 
@@ -169,62 +97,6 @@ export default function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Notification Bell */}
-            {isAuthenticated && (
-              <div className="relative" ref={notifRef}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 w-9 p-0 relative"
-                  onClick={() => {
-                    setNotifOpen((v) => !v);
-                  }}
-                >
-                  <Bell className="w-4 h-4" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                      {unreadCount > 9 ? "9+" : unreadCount}
-                    </span>
-                  )}
-                </Button>
-                {notifOpen && (
-                  <div className="absolute right-0 top-10 w-80 bg-background border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-                    <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-                      <span className="font-semibold text-sm">Notifications</span>
-                      {notifications.length > 0 && (
-                        <button
-                          className="text-xs text-primary hover:underline"
-                          onClick={() => markReadMutation.mutate({})}
-                        >
-                          Mark all read
-                        </button>
-                      )}
-                    </div>
-                    {notifications.length === 0 ? (
-                      <div className="px-4 py-6 text-center text-sm text-muted-foreground">No notifications</div>
-                    ) : (
-                      notifications.map((n: { id: number; title: string; body: string; link?: string | null; isRead: number; createdAt: Date | number }) => (
-                        <div
-                          key={n.id}
-                          className={`px-4 py-3 border-b border-border/50 cursor-pointer hover:bg-accent/50 transition-colors ${
-                            !n.isRead ? "bg-primary/5" : ""
-                          }`}
-                          onClick={() => {
-                            if (!n.isRead) markReadMutation.mutate({ ids: [n.id] });
-                            if (n.link) { setLocation(n.link); setNotifOpen(false); }
-                          }}
-                        >
-                          <p className={`text-sm font-medium ${!n.isRead ? "text-foreground" : "text-muted-foreground"}`}>{n.title}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.body}</p>
-                          <p className="text-[10px] text-muted-foreground/60 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Cart */}
             <Link href="/cart">
               <Button variant="ghost" size="sm" className="h-9 w-9 p-0 relative">
@@ -257,15 +129,6 @@ export default function Navbar() {
                   <DropdownMenuItem asChild>
                     <Link href="/orders">{t("orders.title")}</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/seller">{t("nav.my_store")}</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/referral">{t("nav.referral")}</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/wallet">💰 USDD Wallet</Link>
-                  </DropdownMenuItem>
                   {user?.role === "admin" && (
                     <>
                       <DropdownMenuSeparator />
@@ -284,7 +147,7 @@ export default function Navbar() {
               <Button
                 size="sm"
                 className="h-9 text-sm"
-                onClick={() => (window.location.href = "/login")}
+                onClick={() => (window.location.href = getLoginUrl())}
               >
                 {t("nav.login")}
               </Button>
@@ -322,21 +185,6 @@ export default function Navbar() {
               </Link>
               <Link href="/products" onClick={() => setMobileOpen(false)} className="px-2 py-1.5 text-sm hover:bg-accent rounded-md">
                 {t("nav.products")}
-              </Link>
-              <Link href="/marketplace" onClick={() => setMobileOpen(false)} className="px-2 py-1.5 text-sm hover:bg-accent rounded-md">
-                {t("nav.marketplace")}
-              </Link>
-              <Link href="/influencer-onboarding" onClick={() => setMobileOpen(false)} className="px-2 py-1.5 text-sm hover:bg-accent rounded-md">
-                {t("nav.influencer")}
-              </Link>
-              <Link href="/supply-chain-onboarding" onClick={() => setMobileOpen(false)} className="px-2 py-1.5 text-sm hover:bg-accent rounded-md">
-                {t("nav.supply_chain")}
-              </Link>
-              <Link href="/seller" onClick={() => setMobileOpen(false)} className="px-2 py-1.5 text-sm hover:bg-accent rounded-md">
-                {t("nav.seller_dashboard")}
-              </Link>
-              <Link href="/referral" onClick={() => setMobileOpen(false)} className="px-2 py-1.5 text-sm hover:bg-accent rounded-md">
-                💰 {t("nav.referral")}
               </Link>
             </nav>
           </div>

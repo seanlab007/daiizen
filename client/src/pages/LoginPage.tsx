@@ -78,7 +78,7 @@ function PhonePanel({ onSuccess }: { onSuccess: () => void }) {
         credentials: "include",
         body: JSON.stringify({ phone: phone.trim() }),
       });
-      const data = await res.json();
+      const data = await res.json() as { error?: string };
       if (!res.ok) { toast.error(data.error || "Failed to send code"); return; }
       toast.success("Verification code sent!");
       setCodeSent(true);
@@ -100,7 +100,7 @@ function PhonePanel({ onSuccess }: { onSuccess: () => void }) {
         credentials: "include",
         body: JSON.stringify({ phone: phone.trim(), code: code.trim() }),
       });
-      const data = await res.json();
+      const data = await res.json() as { error?: string };
       if (!res.ok) { toast.error(data.error || "Verification failed"); return; }
       toast.success("Welcome to Daiizen!");
       onSuccess();
@@ -188,7 +188,7 @@ function EmailPanel({ onSuccess }: { onSuccess: () => void }) {
         credentials: "include",
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const data = await res.json() as { error?: string };
       if (!res.ok) { toast.error(data.error || "Authentication failed"); return; }
       toast.success(mode === "login" ? "Welcome back!" : "Account created!");
       onSuccess();
@@ -243,12 +243,12 @@ export default function LoginPage() {
   // Fetch social provider status
   useEffect(() => {
     fetch("/api/auth/social/status")
-      .then(r => r.json())
-      .then((data: SocialStatus) => setSocialStatus(data))
+      .then(r => r.json() as Promise<SocialStatus>)
+      .then((data) => setSocialStatus(data))
       .catch(() => {});
     fetch("/api/auth/telegram/config")
-      .then(r => r.json())
-      .then((data: { botName: string; configured: boolean }) => {
+      .then(r => r.json() as Promise<{ botName: string; configured: boolean }>)
+      .then((data) => {
         if (data.botName) setTelegramBotName(data.botName);
       })
       .catch(() => {});

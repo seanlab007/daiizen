@@ -5,11 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useParams, useLocation } from "wouter";
 import { useState } from "react";
-import { Package, ShoppingBag, BarChart3, Plus, Pencil, Trash2, Sparkles, RefreshCw, CheckCircle, Store, DollarSign, Settings, AlertCircle, Clock, XCircle, CreditCard, Smartphone, Banknote, FileText, Building2, MapPin } from "lucide-react";
+import { Package, ShoppingBag, BarChart3, Plus, Pencil, Trash2, Sparkles, RefreshCw, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 
-type Section = "dashboard" | "products" | "orders" | "categories" | "rates" | "stores" | "deposits" | "marketplace-config" | "payment-config" | "usdd-deposits" | "usdd-withdrawals" | "quotes" | "creator-cards";
+type Section = "dashboard" | "products" | "orders" | "categories" | "rates";
 
 const STATUS_COLORS: Record<string, string> = {
   pending_payment: "text-amber-600",
@@ -20,6 +20,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function Admin() {
+  const { t } = useLanguage();
   const { user, isAuthenticated } = useAuth();
   const params = useParams<{ section?: string }>();
   const [, setLocation] = useLocation();
@@ -33,64 +34,15 @@ export default function Admin() {
   });
 
   const { data: stats } = trpc.admin.stats.useQuery(undefined, { enabled: isAuthenticated && user?.role === "admin" });
-  const { data: pendingStores, refetch: refetchStores } = trpc.store.adminListStores.useQuery({ status: "pending", page: 1, limit: 50 }, { enabled: section === "stores" && isAuthenticated && user?.role === "admin" });
-  const { data: allStores } = trpc.store.adminListStores.useQuery({ page: 1, limit: 50 }, { enabled: section === "stores" && isAuthenticated && user?.role === "admin" });
-  const { data: pendingDeposits, refetch: refetchDeposits } = trpc.store.adminListDeposits.useQuery({ status: "pending", page: 1, limit: 50 }, { enabled: section === "deposits" && isAuthenticated && user?.role === "admin" });
-  const { data: pendingUsddDeposits, refetch: refetchUsddDeposits } = trpc.wallet.adminGetPendingDeposits.useQuery(undefined, { enabled: section === "usdd-deposits" && isAuthenticated && user?.role === "admin" });
-  const { data: allWithdrawals, refetch: refetchWithdrawals } = trpc.withdrawal.adminGetAll.useQuery({ status: undefined }, { enabled: section === "usdd-withdrawals" && isAuthenticated && user?.role === "admin" });
-  const { t } = useLanguage();
-  // admin mutations
-  const confirmUsddDepositMutation = trpc.wallet.adminConfirmDeposit.useMutation({ onSuccess: () => { refetchUsddDeposits(); toast.success(t("admin.deposit_confirmed")); } });
-  const rejectUsddDepositMutation = trpc.wallet.adminRejectDeposit.useMutation({ onSuccess: () => { refetchUsddDeposits(); toast.success(t("admin.deposit_rejected")); } });
-  const approveWithdrawalMutation = trpc.withdrawal.adminApprove.useMutation({ onSuccess: () => { refetchWithdrawals(); toast.success(t("admin.withdrawal_approved")); } });
-  const rejectWithdrawalMutation = trpc.withdrawal.adminReject.useMutation({ onSuccess: () => { refetchWithdrawals(); toast.success(t("admin.withdrawal_rejected")); } });
-  const [markPaidForm, setMarkPaidForm] = useState<{ id: number; txHash: string } | null>(null);
-  const markPaidMutation = trpc.withdrawal.adminMarkPaid.useMutation({ onSuccess: () => { refetchWithdrawals(); setMarkPaidForm(null); toast.success(t("admin.marked_paid")); } });
-  const { data: marketplaceConfig, refetch: refetchConfig } = trpc.store.getConfig.useQuery(undefined, { enabled: section === "marketplace-config" && isAuthenticated && user?.role === "admin" });
-  const [configForm, setConfigForm] = useState({ commissionRate: "", depositAmount: "", depositWalletAddress: "" });
-  const [paymentForm, setPaymentForm] = useState({ method: "alipay", accountName: "", accountNumber: "", qrCodeUrl: "", isEnabled: true });
-  const { data: paymentMethods, refetch: refetchPaymentMethods } = trpc.payment.adminGetPaymentConfigs.useQuery(undefined, { enabled: section === "payment-config" && isAuthenticated && user?.role === "admin" });
-  const setPaymentMethodMutation = trpc.payment.adminUpdatePaymentConfig.useMutation({ onSuccess: () => { refetchPaymentMethods(); toast.success(t("common.saved")); setPaymentForm({ method: "alipay", accountName: "", accountNumber: "", qrCodeUrl: "", isEnabled: true }); } });
-  const deletePaymentMethodMutation = trpc.payment.adminUpdatePaymentConfig.useMutation({ onSuccess: () => { refetchPaymentMethods(); toast.success(t("common.success")); } });
-  const approveStoreMutation = trpc.store.adminApproveStore.useMutation({ onSuccess: () => { refetchStores(); toast.success(t("admin.store_approved")); } });
-  const rejectStoreMutation = trpc.store.adminRejectStore.useMutation({ onSuccess: () => { refetchStores(); toast.success(t("admin.store_rejected")); } });
-  const suspendStoreMutation = trpc.store.adminSuspendStore.useMutation({ onSuccess: () => { refetchStores(); toast.success(t("admin.store_suspended")); } });
-  const reinstateStoreMutation = trpc.store.adminReinstateStore.useMutation({ onSuccess: () => { refetchStores(); toast.success(t("admin.store_reinstated")); } });
-  const confirmDepositMutation = trpc.store.adminConfirmDeposit.useMutation({ onSuccess: () => { refetchDeposits(); toast.success(t("admin.deposit_confirmed")); } });
-  const refundDepositMutation = trpc.store.adminRefundDeposit.useMutation({ onSuccess: () => { refetchDeposits(); toast.success(t("admin.deposit_rejected")); } });
-  const updateConfigMutation = trpc.store.adminSetConfig.useMutation({ onSuccess: () => { refetchConfig(); toast.success(t("common.saved")); } });
   const { data: products, refetch: refetchProducts } = trpc.products.list.useQuery({ page: 1, limit: 50 }, { enabled: section === "products" });
   const { data: orders, refetch: refetchOrders } = trpc.admin.orders.useQuery(undefined, { enabled: section === "orders" });
   const { data: cats, refetch: refetchCats } = trpc.categories.list.useQuery(undefined, { enabled: section === "categories" });
-  const { data: lowStockThresholds = [], refetch: refetchThresholds } = trpc.admin.lowStockThresholds.useQuery(undefined, { enabled: section === "products" });
-  const { data: bulkDiscounts = [], refetch: refetchBulkDiscounts } = trpc.admin.bulkDiscounts.useQuery(undefined, { enabled: section === "products" });
-
-  const [thresholdForm, setThresholdForm] = useState<{ productId: number; threshold: number } | null>(null);
-  const [bulkDiscountForm, setBulkDiscountForm] = useState<{ id?: number; categoryId: string; minQty: string; discountPct: string; label: string } | null>(null);
-  const [stockEditForm, setStockEditForm] = useState<{ productId: number; stock: number } | null>(null);
-  const [quoteStatusForm, setQuoteStatusForm] = useState<{ id: number; status: string; adminNotes: string; quotedPrice: string } | null>(null);
-  const { data: quoteRequests = [], refetch: refetchQuotes } = trpc.quotes.list.useQuery({ status: undefined }, { enabled: section === "quotes" && isAuthenticated && user?.role === "admin" });
-  const { data: creatorCardsList = [], refetch: refetchCreatorCards } = trpc.creatorCard.adminListCards.useQuery(undefined, { enabled: section === "creator-cards" && isAuthenticated && user?.role === "admin" });
-  const { data: contentSubmissions = [], refetch: refetchSubmissions } = trpc.creatorCard.adminListSubmissions.useQuery({ status: undefined }, { enabled: section === "creator-cards" && isAuthenticated && user?.role === "admin" });
-  const updateCreatorCardMutation = trpc.creatorCard.adminUpdateCard.useMutation({
-    onSuccess: () => { toast.success("Card updated"); refetchCreatorCards(); },
-    onError: (err) => toast.error(err.message),
-  });
-  const reviewSubmissionMutation = trpc.creatorCard.adminReviewSubmission.useMutation({
-    onSuccess: () => { toast.success("Submission reviewed"); refetchSubmissions(); },
-    onError: (err) => toast.error(err.message),
-  });
-  const updateQuoteStatusMutation = trpc.quotes.updateStatus.useMutation({ onSuccess: () => { refetchQuotes(); setQuoteStatusForm(null); toast.success("Quote status updated"); } });
 
   const createProductMutation = trpc.admin.createProduct.useMutation({ onSuccess: () => { refetchProducts(); setShowNewProduct(false); toast.success("Product created"); } });
   const deleteProductMutation = trpc.admin.deleteProduct.useMutation({ onSuccess: () => { refetchProducts(); toast.success("Product deleted"); } });
   const generateImageMutation = trpc.admin.generateProductImage.useMutation({ onSuccess: () => { refetchProducts(); toast.success("Image generated!"); } });
-  const updateStockMutation = trpc.admin.updateProduct.useMutation({ onSuccess: () => { refetchProducts(); setStockEditForm(null); toast.success("Stock updated"); } });
   const updateOrderStatusMutation = trpc.admin.updateOrderStatus.useMutation({ onSuccess: () => refetchOrders() });
   const refreshRatesMutation = trpc.exchangeRates.refresh.useMutation({ onSuccess: () => toast.success("Rates refreshed!") });
-  const setThresholdMutation = trpc.admin.setLowStockThreshold.useMutation({ onSuccess: () => { refetchThresholds(); setThresholdForm(null); toast.success("Threshold saved"); } });
-  const upsertBulkDiscountMutation = trpc.admin.upsertBulkDiscount.useMutation({ onSuccess: () => { refetchBulkDiscounts(); setBulkDiscountForm(null); toast.success("Discount saved"); } });
-  const deleteBulkDiscountMutation = trpc.admin.deleteBulkDiscount.useMutation({ onSuccess: () => { refetchBulkDiscounts(); toast.success("Discount deleted"); } });
 
   if (!isAuthenticated || user?.role !== "admin") {
     return (
@@ -106,14 +58,6 @@ export default function Admin() {
     { id: "orders", label: "Orders", icon: ShoppingBag },
     { id: "categories", label: "Categories", icon: Package },
     { id: "rates", label: "Exchange Rates", icon: RefreshCw },
-    { id: "stores", label: t("admin.stores"), icon: Store },
-    { id: "deposits", label: t("admin.deposits"), icon: DollarSign },
-    { id: "marketplace-config", label: t("admin.marketplace_config"), icon: Settings },
-    { id: "payment-config", label: t("admin.payment_config"), icon: CreditCard },
-    { id: "usdd-deposits", label: t("admin.usdd_deposits"), icon: DollarSign },
-    { id: "usdd-withdrawals", label: t("admin.usdd_withdrawals"), icon: Banknote },
-    { id: "quotes", label: "Bulk Quotes", icon: FileText },
-    { id: "creator-cards", label: "Creator Cards", icon: CreditCard },
   ];
 
   return (
@@ -192,22 +136,17 @@ export default function Admin() {
             )}
 
             <div className="rounded-xl border border-border/60 overflow-hidden">
-              <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[600px]">
+              <table className="w-full text-sm">
                 <thead className="bg-muted/40">
                   <tr>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground">Product</th>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground">Price</th>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground">Stock</th>
-                    <th className="text-left p-3 text-xs font-medium text-muted-foreground">Alert Threshold</th>
                     <th className="text-right p-3 text-xs font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/50">
-                  {products?.items.map(product => {
-                    const threshold = lowStockThresholds.find(t => t.productId === product.id);
-                    const isLow = threshold && product.stock <= threshold.threshold;
-                    return (
+                  {products?.items.map(product => (
                     <tr key={product.id} className="hover:bg-muted/20 transition-colors">
                       <td className="p-3">
                         <div className="flex items-center gap-2">
@@ -224,51 +163,7 @@ export default function Admin() {
                         </div>
                       </td>
                       <td className="p-3 text-primary font-medium">{Number(product.priceUsdd).toFixed(2)}</td>
-                      <td className="p-3">
-                        {stockEditForm?.productId === product.id ? (
-                          <div className="flex items-center gap-1">
-                            <Input
-                              type="number"
-                              value={stockEditForm.stock}
-                              onChange={e => setStockEditForm({ ...stockEditForm, stock: parseInt(e.target.value) || 0 })}
-                              className="h-6 w-16 text-xs"
-                              min={0}
-                            />
-                            <Button size="sm" className="h-6 text-xs px-2" onClick={() => updateStockMutation.mutate({ id: product.id, stock: stockEditForm.stock })} disabled={updateStockMutation.isPending}>Save</Button>
-                            <Button size="sm" variant="ghost" className="h-6 text-xs px-1" onClick={() => setStockEditForm(null)}>✕</Button>
-                          </div>
-                        ) : (
-                          <button
-                            className={`text-xs font-medium hover:underline underline-offset-2 ${isLow ? "text-red-600 font-bold" : "text-muted-foreground hover:text-foreground"}`}
-                            onClick={() => setStockEditForm({ productId: product.id, stock: product.stock })}
-                            title="Click to edit stock"
-                          >
-                            {isLow && <AlertCircle className="w-3 h-3 inline mr-1" />}
-                            {product.stock}
-                          </button>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        {thresholdForm?.productId === product.id ? (
-                          <div className="flex items-center gap-1">
-                            <Input
-                              type="number"
-                              value={thresholdForm.threshold}
-                              onChange={e => setThresholdForm({ ...thresholdForm, threshold: parseInt(e.target.value) || 0 })}
-                              className="h-6 w-16 text-xs"
-                            />
-                            <Button size="sm" className="h-6 text-xs px-2" onClick={() => setThresholdMutation.mutate({ productId: product.id, threshold: thresholdForm.threshold })}>Save</Button>
-                            <Button size="sm" variant="ghost" className="h-6 text-xs px-1" onClick={() => setThresholdForm(null)}>✕</Button>
-                          </div>
-                        ) : (
-                          <button
-                            className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                            onClick={() => setThresholdForm({ productId: product.id, threshold: threshold?.threshold ?? 10 })}
-                          >
-                            {threshold ? `Alert at ${threshold.threshold}` : "Set alert"}
-                          </button>
-                        )}
-                      </td>
+                      <td className="p-3 text-muted-foreground">{product.stock}</td>
                       <td className="p-3">
                         <div className="flex items-center justify-end gap-1">
                           <Button
@@ -288,74 +183,9 @@ export default function Admin() {
                         </div>
                       </td>
                     </tr>
-                    );
-                  })}
+                  ))}
                 </tbody>
               </table>
-              </div>
-            </div>
-
-            {/* Bulk Discounts Management */}
-            <div className="mt-6">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-foreground">Bulk Purchase Discounts</h3>
-                <Button size="sm" className="gap-1.5 h-7 text-xs" onClick={() => setBulkDiscountForm({ categoryId: "30001", minQty: "5", discountPct: "5", label: "" })}>
-                  <Plus className="w-3 h-3" /> Add Tier
-                </Button>
-              </div>
-
-              {bulkDiscountForm && (
-                <div className="p-4 rounded-xl border border-border/60 bg-card mb-3 space-y-3">
-                  <h4 className="text-xs font-semibold">New Discount Tier</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div><Label className="text-xs">Category ID</Label><Input value={bulkDiscountForm.categoryId} onChange={e => setBulkDiscountForm({...bulkDiscountForm, categoryId: e.target.value})} className="h-8 text-sm mt-1" placeholder="30001" /></div>
-                    <div><Label className="text-xs">Min Qty</Label><Input type="number" value={bulkDiscountForm.minQty} onChange={e => setBulkDiscountForm({...bulkDiscountForm, minQty: e.target.value})} className="h-8 text-sm mt-1" /></div>
-                    <div><Label className="text-xs">Discount %</Label><Input type="number" value={bulkDiscountForm.discountPct} onChange={e => setBulkDiscountForm({...bulkDiscountForm, discountPct: e.target.value})} className="h-8 text-sm mt-1" /></div>
-                    <div><Label className="text-xs">Label</Label><Input value={bulkDiscountForm.label} onChange={e => setBulkDiscountForm({...bulkDiscountForm, label: e.target.value})} className="h-8 text-sm mt-1" placeholder="Buy 5+: 5% off" /></div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => upsertBulkDiscountMutation.mutate({ id: bulkDiscountForm.id, categoryId: parseInt(bulkDiscountForm.categoryId) || null, minQty: parseInt(bulkDiscountForm.minQty) || 1, discountPct: bulkDiscountForm.discountPct, label: bulkDiscountForm.label })} disabled={upsertBulkDiscountMutation.isPending}>Save</Button>
-                    <Button size="sm" variant="outline" onClick={() => setBulkDiscountForm(null)}>Cancel</Button>
-                  </div>
-                </div>
-              )}
-
-              <div className="rounded-xl border border-border/60 overflow-hidden">
-                <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[400px]">
-                  <thead className="bg-muted/40">
-                    <tr>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Scope</th>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Min Qty</th>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Discount</th>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Label</th>
-                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/50">
-                    {bulkDiscounts.map(d => (
-                      <tr key={d.id} className="hover:bg-muted/20">
-                        <td className="p-3 text-xs text-muted-foreground">
-                          {d.categoryId ? `Category #${d.categoryId}` : d.productId ? `Product #${d.productId}` : "All"}
-                        </td>
-                        <td className="p-3 text-xs font-medium">{d.minQty}+</td>
-                        <td className="p-3 text-xs font-semibold text-orange-600">{d.discountPct}%</td>
-                        <td className="p-3 text-xs text-muted-foreground">{d.label || "—"}</td>
-                        <td className="p-3">
-                          <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setBulkDiscountForm({ id: d.id, categoryId: String(d.categoryId ?? ""), minQty: String(d.minQty), discountPct: String(d.discountPct), label: d.label ?? "" })}><Pencil className="w-3 h-3" /></Button>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={() => { if (confirm("Delete this discount tier?")) deleteBulkDiscountMutation.mutate({ id: d.id }); }}><Trash2 className="w-3 h-3" /></Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {bulkDiscounts.length === 0 && (
-                      <tr><td colSpan={5} className="p-4 text-center text-xs text-muted-foreground">No bulk discount tiers configured</td></tr>
-                    )}
-                  </tbody>
-                </table>
-                </div>
-              </div>
             </div>
           </div>
         )}
@@ -363,8 +193,7 @@ export default function Admin() {
         {/* Orders */}
         {section === "orders" && (
           <div className="rounded-xl border border-border/60 overflow-hidden">
-            <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[600px]">
+            <table className="w-full text-sm">
               <thead className="bg-muted/40">
                 <tr>
                   <th className="text-left p-3 text-xs font-medium text-muted-foreground">Order</th>
@@ -403,7 +232,6 @@ export default function Admin() {
                 ))}
               </tbody>
             </table>
-            </div>
           </div>
         )}
 
@@ -418,645 +246,6 @@ export default function Admin() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">Rates are fetched from exchangerate-api.com and stored in the database.</p>
-          </div>
-        )}
-
-        {/* Store Management */}
-        {section === "stores" && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-3">{t("admin.pending_stores")}</h2>
-              {pendingStores?.stores.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4">{t("admin.no_pending_stores")}</p>
-              ) : (
-                <div className="rounded-xl border border-border/60 overflow-hidden">
-                  <div className="overflow-x-auto">
-                  <table className="w-full text-sm min-w-[500px]">
-                    <thead className="bg-muted/40">
-                      <tr>
-                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.store")}</th>
-                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.seller")}</th>
-                        <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.applied_at")}</th>
-                        <th className="text-right p-3 text-xs font-medium text-muted-foreground">{t("admin.actions")}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/50">
-                      {pendingStores?.stores.map((store: any) => (
-                        <tr key={store.id} className="hover:bg-muted/20 transition-colors">
-                          <td className="p-3">
-                            <div>
-                              <p className="font-medium">{store.name}</p>
-                              <p className="text-xs text-muted-foreground">{store.description?.slice(0, 60)}</p>
-                            </div>
-                          </td>
-                          <td className="p-3 text-muted-foreground text-xs">{store.ownerName ?? store.ownerId}</td>
-                          <td className="p-3 text-muted-foreground text-xs">{new Date(store.createdAt).toLocaleDateString()}</td>
-                          <td className="p-3">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button size="sm" className="h-7 text-xs gap-1" onClick={() => approveStoreMutation.mutate({ id: store.id })} disabled={approveStoreMutation.isPending}>
-                                <CheckCircle className="w-3 h-3" /> {t("admin.approve")}
-                              </Button>
-                              <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" onClick={() => { const note = prompt(t("admin.reject_reason")); trpc.useUtils().store.adminListStores.invalidate(); rejectStoreMutation.mutate({ id: store.id, adminNote: note ?? "" }); }} disabled={approveStoreMutation.isPending}>
-                                <XCircle className="w-3 h-3" /> {t("admin.reject")}
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold mb-3">{t("admin.all_stores")}</h2>
-              <div className="rounded-xl border border-border/60 overflow-hidden">
-                <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[450px]">
-                  <thead className="bg-muted/40">
-                    <tr>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.store")}</th>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.status")}</th>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.product_count")}</th>
-                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">{t("admin.actions")}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/50">
-                    {allStores?.stores.map((store: any) => (
-                      <tr key={store.id} className="hover:bg-muted/20 transition-colors">
-                        <td className="p-3 font-medium">{store.name}</td>
-                        <td className="p-3">
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                            store.status === "active" ? "bg-green-100 text-green-700" :
-                            store.status === "pending" ? "bg-yellow-100 text-yellow-700" :
-                            "bg-red-100 text-red-700"
-                          }`}>{store.status}</span>
-                        </td>
-                        <td className="p-3 text-muted-foreground">{store.productCount ?? 0}</td>
-                        <td className="p-3">
-                          <div className="flex items-center justify-end gap-2">
-                            {store.status === "active" && (
-                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => suspendStoreMutation.mutate({ id: store.id, adminNote: prompt(t("admin.suspend_reason")) ?? "" })} disabled={suspendStoreMutation.isPending}>
-                                {t("admin.suspend")}
-                              </Button>
-                            )}
-                            {store.status === "suspended" && (
-                              <Button size="sm" className="h-7 text-xs" onClick={() => reinstateStoreMutation.mutate({ id: store.id })} disabled={reinstateStoreMutation.isPending}>
-                                {t("admin.reinstate")}
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Deposits */}
-        {section === "deposits" && (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">{t("admin.deposit_management")}</h2>
-            {pendingDeposits?.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">{t("admin.no_pending_deposits")}</p>
-            ) : (
-              <div className="rounded-xl border border-border/60 overflow-hidden">
-                <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[550px]">
-                  <thead className="bg-muted/40">
-                    <tr>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.store")}</th>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.amount")}</th>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.tx_hash")}</th>
-                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">{t("admin.status")}</th>
-                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">{t("admin.actions")}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/50">
-                    {pendingDeposits?.map((dep: any) => (
-                      <tr key={dep.id} className="hover:bg-muted/20 transition-colors">
-                        <td className="p-3 font-medium">{dep.storeName ?? dep.storeId}</td>
-                        <td className="p-3 text-primary font-medium">{dep.amountUsdd} USDD</td>
-                        <td className="p-3 font-mono text-xs text-muted-foreground truncate max-w-32">{dep.paymentTxHash ?? "-"}</td>
-                        <td className="p-3">
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                            dep.status === "confirmed" ? "bg-green-100 text-green-700" :
-                            dep.status === "pending" ? "bg-yellow-100 text-yellow-700" :
-                            "bg-red-100 text-red-700"
-                          }`}>{dep.status}</span>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center justify-end gap-2">
-                            {dep.status === "pending" && (
-                              <>
-                                <Button size="sm" className="h-7 text-xs" onClick={() => confirmDepositMutation.mutate({ id: dep.deposit.id })} disabled={confirmDepositMutation.isPending}>
-                                  {t("admin.confirm_payment")}
-                                </Button>
-                                <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => refundDepositMutation.mutate({ id: dep.deposit.id })} disabled={refundDepositMutation.isPending}>
-                                  {t("admin.reject")}
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Marketplace Config */}
-        {section === "marketplace-config" && (
-          <div className="max-w-md space-y-6">
-            <h2 className="text-lg font-semibold">{t("admin.marketplace_config")}</h2>
-            <div className="space-y-4 p-5 rounded-xl border border-border/60 bg-card">
-              <div>
-                <Label className="text-xs">{t("admin.commission_rate")} ({marketplaceConfig ? (marketplaceConfig.commissionRate * 100).toFixed(1) : "-"}%)</Label>
-                <Input
-                  className="h-8 text-sm mt-1"
-                  placeholder="e.g. 0.05 = 5%"
-                  value={configForm.commissionRate}
-                  onChange={e => setConfigForm({ ...configForm, commissionRate: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="text-xs">{t("admin.deposit_amount")} ({marketplaceConfig?.depositAmount ?? "-"} USDD)</Label>
-                <Input
-                  className="h-8 text-sm mt-1"
-                  placeholder="e.g. 50"
-                  value={configForm.depositAmount}
-                  onChange={e => setConfigForm({ ...configForm, depositAmount: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="text-xs">{t("admin.wallet_address")} (USDD TRC-20)</Label>
-                <Input
-                  className="h-8 text-sm mt-1"
-                  placeholder="TRC-20 address"
-                  value={configForm.depositWalletAddress}
-                  onChange={e => setConfigForm({ ...configForm, depositWalletAddress: e.target.value })}
-                />
-              </div>
-              <Button
-                size="sm"
-                onClick={async () => {
-                  if (configForm.commissionRate) await updateConfigMutation.mutateAsync({ key: "commission_rate", value: configForm.commissionRate });
-                  if (configForm.depositAmount) await updateConfigMutation.mutateAsync({ key: "deposit_amount", value: configForm.depositAmount });
-                  if (configForm.depositWalletAddress) await updateConfigMutation.mutateAsync({ key: "deposit_wallet_address", value: configForm.depositWalletAddress });
-                  if (!configForm.commissionRate && !configForm.depositAmount && !configForm.depositWalletAddress) toast.info(t("admin.enter_config"));
-                }}
-                disabled={updateConfigMutation.isPending}
-              >
-                {updateConfigMutation.isPending ? t("common.saving") : t("common.save")}
-              </Button>
-            </div>
-          </div>
-        )}
-        {/* Payment Config */}
-        {section === "payment-config" && (
-          <div className="max-w-2xl space-y-6">
-            <h2 className="text-lg font-semibold">{t("admin.payment_config")}</h2>
-            <p className="text-sm text-muted-foreground">{t("admin.payment_config_desc")}</p>
-
-            {/* Existing methods */}
-            {paymentMethods && paymentMethods.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium">{t("admin.configured_methods")}</h3>
-                {paymentMethods.map((m: any) => (
-                  <div key={m.method} className="flex items-center justify-between p-4 rounded-xl border border-border/60 bg-card">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs ${
-                        m.method === "alipay" ? "bg-blue-500" : m.method === "wechat" ? "bg-green-500" : m.method === "unionpay" ? "bg-red-500" : "bg-gray-500"
-                      }`}>
-                        {m.method === "alipay" || m.method === "wechat" ? <Smartphone className="w-4 h-4" /> : <CreditCard className="w-4 h-4" />}
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium">{m.method === "alipay" ? "Alipay" : m.method === "wechat" ? "WeChat Pay" : m.method === "unionpay" ? "UnionPay" : m.method}</div>
-                        <div className="text-xs text-muted-foreground">{m.accountName} · {m.accountNumber}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${m.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                        {m.isActive ? t("common.active") : t("common.inactive")}
-                      </span>
-                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => deletePaymentMethodMutation.mutate({ method: m.method, accountName: m.accountName, accountNumber: m.accountNumber, isEnabled: false })}>
-                        {t("common.delete")}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Add/Edit method */}
-            <div className="p-5 rounded-xl border border-border/60 bg-card space-y-4">
-              <h3 className="text-sm font-medium">{t("admin.add_payment_method")}</h3>
-              <div>
-                <Label className="text-xs">{t("admin.payment_method")}</Label>
-                <select
-                  value={paymentForm.method}
-                  onChange={e => setPaymentForm({ ...paymentForm, method: e.target.value })}
-                  className="w-full mt-1 h-8 text-sm rounded-md border border-input bg-background px-3 focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option value="alipay">Alipay</option>
-                  <option value="wechat">WeChat Pay</option>
-                  <option value="unionpay">UnionPay</option>
-                </select>
-              </div>
-              <div>
-                <Label className="text-xs">{t("admin.account_name")}</Label>
-                <Input className="h-8 text-sm mt-1" placeholder="e.g. John / Daiizen" value={paymentForm.accountName} onChange={e => setPaymentForm({ ...paymentForm, accountName: e.target.value })} />
-              </div>
-              <div>
-                <Label className="text-xs">{t("admin.account_number")}</Label>
-                <Input className="h-8 text-sm mt-1" placeholder="Phone / account number" value={paymentForm.accountNumber} onChange={e => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })} />
-              </div>
-              <div>
-                <Label className="text-xs">{t("admin.qr_code_url")}</Label>
-                <Input className="h-8 text-sm mt-1" placeholder="QR code image URL (optional)" value={paymentForm.qrCodeUrl} onChange={e => setPaymentForm({ ...paymentForm, qrCodeUrl: e.target.value })} />
-              </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" checked={paymentForm.isEnabled} onChange={e => setPaymentForm({ ...paymentForm, isEnabled: e.target.checked })} className="rounded" />
-                <Label className="text-xs cursor-pointer">{t("admin.enable_method")}</Label>
-              </div>
-              <Button
-                size="sm"
-                onClick={() => setPaymentMethodMutation.mutate({ method: paymentForm.method as any, accountName: paymentForm.accountName, accountNumber: paymentForm.accountNumber, qrCodeUrl: paymentForm.qrCodeUrl || undefined, isEnabled: paymentForm.isEnabled })}
-                disabled={setPaymentMethodMutation.isPending || !paymentForm.accountName || !paymentForm.accountNumber}
-              >
-                {setPaymentMethodMutation.isPending ? t("common.saving") : t("admin.save_payment_method")}
-              </Button>
-            </div>
-          </div>
-        )}
-        {/* USDD Deposit Review */}
-        {section === "usdd-deposits" && (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">{t("admin.usdd_deposits")}</h2>
-            <p className="text-sm text-muted-foreground">{t("admin.usdd_deposits_desc")}</p>
-            {!pendingUsddDeposits || pendingUsddDeposits.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <div className="text-4xl mb-2">✅</div>
-                <p>{t("admin.no_pending_usdd_deposits")}</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {pendingUsddDeposits.map((tx: any) => (
-                  <div key={tx.id} className="p-4 border rounded-xl bg-card space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="font-bold text-lg">{parseFloat(tx.amountUsdd).toFixed(2)} USDD</div>
-                        <div className="text-sm text-muted-foreground">User ID: {tx.userId}</div>
-                        <div className="text-xs text-muted-foreground">{new Date(tx.createdAt).toLocaleString()}</div>
-                        {tx.txHash && <div className="text-xs font-mono text-blue-500 mt-1">TxHash: {tx.txHash}</div>}
-                        {tx.note && <div className="text-xs text-muted-foreground mt-1">Note: {tx.note}</div>}
-                      </div>
-                      {tx.depositScreenshotUrl && (
-                        <a href={tx.depositScreenshotUrl} target="_blank" rel="noopener noreferrer">
-                          <img src={tx.depositScreenshotUrl} alt="screenshot" className="w-16 h-16 object-cover rounded border" />
-                        </a>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => confirmUsddDepositMutation.mutate({ txId: tx.id })} disabled={confirmUsddDepositMutation.isPending}>
-                        ✓ {t("admin.confirm_deposit")}
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => rejectUsddDepositMutation.mutate({ txId: tx.id, adminNote: "rejected" })} disabled={rejectUsddDepositMutation.isPending}>
-                        ✗ {t("admin.reject")}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* USDD Withdrawal Management */}
-        {section === "usdd-withdrawals" && (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">{t("admin.usdd_withdrawals")}</h2>
-            {!allWithdrawals || allWithdrawals.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <div className="text-4xl mb-2">📋</div>
-                <p>{t("admin.no_withdrawals")}</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {allWithdrawals.map((req: any) => (
-                  <div key={req.id} className="p-4 border rounded-xl bg-card space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="font-bold text-lg">{parseFloat(req.amountUsdd).toFixed(2)} USDD</div>
-                        <div className="text-xs font-mono text-muted-foreground mt-0.5">{req.walletAddress}</div>
-                        <div className="text-xs text-muted-foreground">Store ID: {req.storeId} | {new Date(req.createdAt).toLocaleString()}</div>
-                        {req.txHash && <div className="text-xs font-mono text-green-600 mt-1">TxHash: {req.txHash}</div>}
-                        {req.rejectionReason && <div className="text-xs text-red-500 mt-1">{t("admin.rejection_reason")}: {req.rejectionReason}</div>}
-                      </div>
-                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                        req.status === "paid" ? "bg-green-100 text-green-700" :
-                        req.status === "approved" ? "bg-blue-100 text-blue-700" :
-                        req.status === "pending" ? "bg-amber-100 text-amber-700" :
-                        "bg-red-100 text-red-700"
-                      }`}>{req.status}</span>
-                    </div>
-                    {req.status === "pending" && (
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => approveWithdrawalMutation.mutate({ id: req.id })} disabled={approveWithdrawalMutation.isPending}>
-                          ✓ {t("admin.approve")}
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => rejectWithdrawalMutation.mutate({ id: req.id, rejectionReason: "Rejected by admin" })} disabled={rejectWithdrawalMutation.isPending}>
-                          ✗ {t("admin.reject")}
-                        </Button>
-                      </div>
-                    )}
-                    {req.status === "approved" && (
-                      <div className="flex gap-2 items-center">
-                        {markPaidForm !== null && markPaidForm.id === req.id ? (
-                          <>
-                            <Input
-                              className="h-8 text-xs max-w-xs"
-                              placeholder="Enter TRC-20 TxHash"
-                              value={markPaidForm.txHash}
-                              onChange={e => setMarkPaidForm(prev => prev ? { ...prev, txHash: e.target.value } : prev)}
-                            />
-                            <Button size="sm" onClick={() => { if (markPaidForm) markPaidMutation.mutate({ id: markPaidForm.id, txHash: markPaidForm.txHash }); }} disabled={!markPaidForm.txHash || markPaidMutation.isPending}>
-                              {t("admin.confirm_payment")}
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setMarkPaidForm(null)}>{t("common.cancel")}</Button>
-                          </>
-                        ) : (
-                          <Button size="sm" variant="outline" onClick={() => setMarkPaidForm({ id: req.id, txHash: "" })}>
-                            💸 {t("admin.mark_paid")}
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Bulk Quote Requests */}
-        {section === "quotes" && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Bulk Quote Requests</h2>
-              <span className="text-sm text-muted-foreground">{quoteRequests.length} total</span>
-            </div>
-            {quoteRequests.length === 0 ? (
-              <div className="text-center py-16 text-muted-foreground">
-                <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                <p>No quote requests yet.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {(quoteRequests as Array<{
-                  id: number; orgName: string; contactName: string; contactEmail: string;
-                  contactPhone: string | null; orgType: string; deliveryCountry: string;
-                  deliveryCity: string | null; items: unknown; estimatedTotalUsdd: string | null;
-                  urgency: string; notes: string | null; status: string; adminNotes: string | null;
-                  quotedPriceUsdd: string | null; createdAt: Date;
-                }>).map((q) => (
-                  <div key={q.id} className="border border-border rounded-lg p-4 space-y-3">
-                    <div className="flex flex-wrap items-start gap-3 justify-between">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-amber-600" />
-                        <span className="font-semibold">{q.orgName}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          q.orgType === "military" ? "bg-slate-200 text-slate-700" :
-                          q.orgType === "ngo" ? "bg-green-100 text-green-700" :
-                          q.orgType === "government" ? "bg-blue-100 text-blue-700" :
-                          "bg-gray-100 text-gray-700"
-                        }`}>{q.orgType.toUpperCase()}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          q.urgency === "critical" ? "bg-red-100 text-red-700" :
-                          q.urgency === "urgent" ? "bg-amber-100 text-amber-700" :
-                          "bg-blue-100 text-blue-700"
-                        }`}>{q.urgency.toUpperCase()}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${
-                          q.status === "pending" ? "bg-amber-50 text-amber-700 border-amber-200" :
-                          q.status === "reviewed" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                          q.status === "quoted" ? "bg-purple-50 text-purple-700 border-purple-200" :
-                          q.status === "accepted" ? "bg-green-50 text-green-700 border-green-200" :
-                          "bg-red-50 text-red-700 border-red-200"
-                        }`}>{q.status}</span>
-                        <span className="text-xs text-muted-foreground">#{q.id}</span>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <span className="font-medium text-foreground">{q.contactName}</span>
-                        <span>·</span>
-                        <a href={`mailto:${q.contactEmail}`} className="text-blue-600 hover:underline">{q.contactEmail}</a>
-                        {q.contactPhone && <span>· {q.contactPhone}</span>}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <MapPin className="w-3.5 h-3.5" />
-                        <span>{q.deliveryCountry}{q.deliveryCity ? `, ${q.deliveryCity}` : ""}</span>
-                      </div>
-                    </div>
-                    {/* Items */}
-                    <div className="bg-muted/40 rounded p-2 text-sm">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Requested Items:</p>
-                      <div className="space-y-0.5">
-                        {(Array.isArray(q.items) ? q.items : []).map((item: { productName: string; quantity: number; unitPriceUsdd: string }, i: number) => (
-                          <div key={i} className="flex justify-between">
-                            <span>{item.productName} × {item.quantity}</span>
-                            <span className="font-mono text-amber-600">{(parseFloat(item.unitPriceUsdd) * item.quantity).toFixed(2)} USDD</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="border-t border-border mt-1.5 pt-1.5 flex justify-between font-medium">
-                        <span>Estimated Total</span>
-                        <span className="text-amber-600 font-mono">{q.estimatedTotalUsdd} USDD</span>
-                      </div>
-                    </div>
-                    {q.notes && <p className="text-sm text-muted-foreground italic">Notes: {q.notes}</p>}
-                    {q.adminNotes && <p className="text-sm text-blue-700 bg-blue-50 rounded px-2 py-1">Admin Notes: {q.adminNotes}</p>}
-                    {q.quotedPriceUsdd && <p className="text-sm font-medium">Quoted Price: <span className="text-amber-600 font-mono">{q.quotedPriceUsdd} USDD</span></p>}
-                    {/* Actions */}
-                    {quoteStatusForm?.id === q.id ? (
-                      <div className="space-y-2 border border-border rounded p-3 bg-muted/30">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <div>
-                            <Label className="text-xs">New Status</Label>
-                            <select
-                              className="w-full mt-1 border border-border rounded px-2 py-1.5 text-sm bg-background"
-                              value={quoteStatusForm.status}
-                              onChange={e => setQuoteStatusForm(prev => prev ? { ...prev, status: e.target.value } : prev)}
-                            >
-                              {["pending","reviewed","quoted","accepted","rejected"].map(s => (
-                                <option key={s} value={s}>{s}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <Label className="text-xs">Quoted Price (USDD)</Label>
-                            <Input
-                              className="mt-1 h-8 text-sm"
-                              placeholder="e.g. 12500.00"
-                              value={quoteStatusForm.quotedPrice}
-                              onChange={e => setQuoteStatusForm(prev => prev ? { ...prev, quotedPrice: e.target.value } : prev)}
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label className="text-xs">Admin Notes</Label>
-                          <textarea
-                            className="w-full mt-1 border border-border rounded px-2 py-1.5 text-sm bg-background resize-none"
-                            rows={2}
-                            placeholder="Internal notes or message to buyer..."
-                            value={quoteStatusForm.adminNotes}
-                            onChange={e => setQuoteStatusForm(prev => prev ? { ...prev, adminNotes: e.target.value } : prev)}
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={() => updateQuoteStatusMutation.mutate({
-                            id: quoteStatusForm.id,
-                            status: quoteStatusForm.status as "pending" | "reviewed" | "quoted" | "accepted" | "rejected",
-                            adminNotes: quoteStatusForm.adminNotes || undefined,
-                            quotedPriceUsdd: quoteStatusForm.quotedPrice || undefined,
-                          })} disabled={updateQuoteStatusMutation.isPending}>
-                            Save
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setQuoteStatusForm(null)}>Cancel</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => setQuoteStatusForm({ id: q.id, status: q.status, adminNotes: q.adminNotes ?? "", quotedPrice: q.quotedPriceUsdd ?? "" })}>
-                          Update Status
-                        </Button>
-                        <a href={`mailto:${q.contactEmail}?subject=Re: Bulk Quote Request #${q.id} - ${q.orgName}`}>
-                          <Button size="sm" variant="outline">Reply by Email</Button>
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-        {section === "creator-cards" && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-bold flex items-center gap-2"><CreditCard className="w-5 h-5 text-purple-400" /> Creator Card Applications</h2>
-            {creatorCardsList.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No applications yet.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-[700px] w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-muted-foreground">
-                      <th className="text-left py-2 px-3">User ID</th>
-                      <th className="text-left py-2 px-3">Card #</th>
-                      <th className="text-left py-2 px-3">Tier</th>
-                      <th className="text-left py-2 px-3">Status</th>
-                      <th className="text-left py-2 px-3">Credit Limit</th>
-                      <th className="text-left py-2 px-3">Used</th>
-                      <th className="text-left py-2 px-3">AI Score</th>
-                      <th className="text-left py-2 px-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {creatorCardsList.map((c: any) => (
-                      <tr key={c.id} className="border-b border-border hover:bg-muted/20">
-                        <td className="py-2 px-3">{c.userId}</td>
-                        <td className="py-2 px-3 font-mono text-xs">{c.cardNumber}</td>
-                        <td className="py-2 px-3 capitalize">{c.cardColor}</td>
-                        <td className="py-2 px-3">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            c.status === "active" ? "bg-green-500/20 text-green-400" :
-                            c.status === "rejected" ? "bg-red-500/20 text-red-400" :
-                            c.status === "suspended" ? "bg-orange-500/20 text-orange-400" :
-                            "bg-yellow-500/20 text-yellow-400"
-                          }`}>{c.status}</span>
-                        </td>
-                        <td className="py-2 px-3">${parseFloat(c.creditLimit).toFixed(0)}</td>
-                        <td className="py-2 px-3">${parseFloat(c.usedAmount).toFixed(0)}</td>
-                        <td className="py-2 px-3">{c.aiScore}</td>
-                        <td className="py-2 px-3">
-                          <div className="flex gap-1">
-                            <Button size="sm" variant="outline" className="text-xs h-7"
-                              onClick={() => updateCreatorCardMutation.mutate({ cardId: c.id, status: c.status === "active" ? "suspended" : "active" })}>
-                              {c.status === "active" ? "Suspend" : "Activate"}
-                            </Button>
-                            <Button size="sm" variant="outline" className="text-xs h-7"
-                              onClick={() => {
-                                const limit = prompt("New credit limit (USDD):", c.creditLimit);
-                                if (limit) updateCreatorCardMutation.mutate({ cardId: c.id, creditLimit: limit });
-                              }}>Edit Limit</Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            <h2 className="text-xl font-bold flex items-center gap-2 pt-4 border-t border-border"><FileText className="w-5 h-5 text-orange-400" /> Content Repayment Submissions</h2>
-            {contentSubmissions.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No submissions yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {contentSubmissions.map((s: any) => (
-                  <div key={s.id} className="p-4 rounded-lg border border-border bg-card space-y-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <span className="font-medium text-sm">Submission #{s.id}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">User #{s.userId} · Card #{s.cardId}</span>
-                      </div>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        s.repaymentStatus === "approved" ? "bg-green-500/20 text-green-400" :
-                        s.repaymentStatus === "rejected" ? "bg-red-500/20 text-red-400" :
-                        s.repaymentStatus === "submitted" ? "bg-blue-500/20 text-blue-400" :
-                        "bg-yellow-500/20 text-yellow-400"
-                      }`}>{s.repaymentStatus}</span>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-muted-foreground">
-                      <span>Type: {s.submissionType ?? "—"}</span>
-                      <span>Amount: ${parseFloat(s.amount).toFixed(2)}</span>
-                      <span>Views: {s.claimedViews?.toLocaleString() ?? "—"}</span>
-                      <span>DARK Reward: {s.darkRewardEarned ?? "0"}</span>
-                    </div>
-                    {s.contentUrl && <a href={s.contentUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 underline break-all">{s.contentUrl}</a>}
-                    {s.screenshotUrl && <a href={s.screenshotUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 underline">View Screenshot</a>}
-                    {s.contentDescription && <p className="text-xs text-muted-foreground">{s.contentDescription}</p>}
-                    {s.aiReviewReason && <p className="text-xs italic text-muted-foreground">AI: {s.aiReviewReason}</p>}
-                    {s.repaymentStatus === "submitted" && (
-                      <div className="flex gap-2 mt-2">
-                        <Button size="sm" className="bg-green-600 hover:bg-green-500 text-xs h-7"
-                          onClick={() => reviewSubmissionMutation.mutate({ consumptionId: s.id, approved: true })}>
-                          <CheckCircle className="w-3 h-3 mr-1" /> Approve
-                        </Button>
-                        <Button size="sm" variant="outline" className="text-xs h-7 border-red-300 text-red-500"
-                          onClick={() => {
-                            const note = prompt("Rejection reason:");
-                            reviewSubmissionMutation.mutate({ consumptionId: s.id, approved: false, adminNote: note ?? undefined });
-                          }}>
-                          <XCircle className="w-3 h-3 mr-1" /> Reject
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         )}
       </div>
