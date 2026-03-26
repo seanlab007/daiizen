@@ -161,11 +161,28 @@ export const onRequest = async (ctx: {
     if (!isAuthed) return json({ error: "Unauthorized" }, origin, 403);
     const body = await request.json() as {
       lotteryId: number;
-      userId: number;
+      userId?: number;
       maoyanOpenId?: string;
       sourcePlatform?: string;
     };
-    const { lotteryId, userId, maoyanOpenId, sourcePlatform = "maoyan" } = body;
+    let { lotteryId, userId, maoyanOpenId } = body;
+    const sourcePlatform = body.sourcePlatform ?? "maoyan";
+
+    // 若没有 userId，尝试通过 maoyanOpenId 从 maoyan_user_links 查找
+    if (!userId && maoyanOpenId) {
+      const { data: link } = await sb
+        .from("maoyan_user_links")
+        .select("daiizenUserId")
+        .eq("maoyanOpenId", maoyanOpenId)
+        .single();
+      if (link) {
+        userId = link.daiizenUserId;
+      }
+    }
+
+    if (!userId) {
+      return json({ error: "User not linked. Please link your daiizen account first." }, origin, 400);
+    }
 
     // Get lottery config
     const { data: lottery, error: lErr } = await sb
