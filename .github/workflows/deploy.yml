@@ -51,6 +51,5 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # No path arg: wrangler reads pages_build_output_dir from wrangler.toml
-          # This ensures functions/ directory is included alongside the static assets
-          command: pages deploy --project-name=daiizen --branch=main
+          # dist/client = static assets root; wrangler auto-discovers functions/ from CWD (repo root)
+          command: pages deploy dist/client --project-name=daiizen --branch=main
