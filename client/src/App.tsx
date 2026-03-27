@@ -41,6 +41,7 @@ const BulkImport = lazy(() => import("./pages/BulkImport"));
 const ReferralPage = lazy(() => import("./pages/ReferralPage"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
+const InternationalSiteManagement = lazy(() => import("./pages/InternationalSiteManagement"));
 
 function PageLoader() {
   return (
@@ -84,6 +85,7 @@ function Router() {
         <Route path="/referral" component={ReferralPage} />
         <Route path="/privacy" component={PrivacyPolicy} />
         <Route path="/terms" component={TermsOfService} />
+        <Route path="/admin/international" component={InternationalSiteManagement} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>
